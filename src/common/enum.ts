@@ -1,0 +1,41 @@
+export enum UserRole {
+  CLIENT = 'CLIENT',
+  AUDITOR = 'AUDITOR',
+  ADMIN = 'ADMIN',
+}
+
+export enum AuditStage {
+  PENDING = 'PENDING',
+  SCANNING = 'SCANNING',
+  IN_REVIEW = 'IN_REVIEW',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+}
+
+export enum FindingSeverity {
+  CRITICAL = 'CRITICAL',
+  HIGH = 'HIGH',
+  MEDIUM = 'MEDIUM',
+  LOW = 'LOW',
+  INFORMATIONAL = 'INFORMATIONAL',
+}
+
+export enum FindingStatus {
+  OPEN = 'OPEN',
+  FIX_SUBMITTED = 'FIX_SUBMITTED',
+  RESOLVED = 'RESOLVED',
+  WONT_FIX = 'WONT_FIX',
+}
+
+export enum PaymentMethod {
+  CRYPTO_ESCROW = 'CRYPTO_ESCROW',
+  CORPORATE_INVOICE = 'CORPORATE_INVOICE',
+}
+
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  ESCROWED = 'ESCROWED',
+  PARTIALLY_RELEASED = 'PARTIALLY_RELEASED',
+  FULLY_RELEASED = 'FULLY_RELEASED',
+  REFUNDED = 'REFUNDED',
+}

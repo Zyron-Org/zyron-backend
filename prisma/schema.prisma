@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USERS & ORGS ───────────────────────────────────────
+
+model User {
+  id              String        @id @default(cuid())
+  email           String        @unique
+  passwordHash    String?       // null for wallet-only users
+  walletAddress   String?       @unique
+  name            String
+  role            String        @default("CLIENT") // CLIENT, AUDITOR, ADMIN
+  avatarUrl       String?
+  auditorHandle   String?       // e.g. "0xAuditor_K4"
+  specialization  String?
+  organizationId  String?
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  submittedAudits AuditRequest[] @relation("SubmittedBy")
+  leadAudits      AuditRequest[] @relation("LeadAuditor")
+  peerAudits      AuditRequest[] @relation("PeerAuditor")
+  comments        Comment[]
+  apiKeys         ApiKey[]
+
+  @@index([email])
+  @@index([walletAddress])
+}
+
+model Organization {
+  id           String         @id @default(cuid())
+  name         String
+  tier         String         @default("standard") // standard, enterprise
+  billingEmail String?
+  taxId        String?
+  createdAt    DateTime       @default(now())
+  users        User[]
+  audits       AuditRequest[]
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  key        String    @unique
+  label      String
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime?
+}
+
+// ─── AUDIT LIFECYCLE ────────────────────────────────────
+
+model AuditRequest {
+  id               String     @id // e.g. "ZYR-9481"
+  protocolName     String
+  contractFileName String
+  contractAddress  String?
+  gitCommit        String?
+  compilerVersion  String
+  network          String     @default("Ethereum Mainnet")
+  sloc             Int
+  stage            String     @default("PENDING") // PENDING, SCANNING, IN_REVIEW, COMPLETED, FAILED
+  stageNumber      Int        @default(1)
+
+  // Source
+  sourceCodeUrl String? // S3 key for uploaded .sol
+  githubRepoUrl String?
+  githubBranch  String?
+
+  // Invariant selections
+  invariants String? // JSON string { reentrancy: true, oracle: true }
+
+  // Timing
+  submittedAt         DateTime  @default(now())
+  estimatedCompletion DateTime?
+  completedAt         DateTime?
+
+  // Attestation (filled on completion)
+  bytecodeHash   String?
+  reportPdfUrl   String?
+  pdfSize        String?
+  onChainTxHash  String? // Attestation registry tx
+  onChainChainId Int?
+
+  // Failure
+  failureReason String?
+
+  // Relations
+  submittedById  String
+  submittedBy    User          @relation("SubmittedBy", fields: [submittedById], references: [id])
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  leadAuditorId  String?
+  leadAuditor    User?         @relation("LeadAuditor", fields: [leadAuditorId], references: [id])
+  peerAuditorId  String?
+  peerAuditor    User?         @relation("PeerAuditor", fields: [peerAuditorId], references: [id])
+
+  findings Finding[]
+  rounds   AuditRound[]
+  scanJobs ScanJob[]
+  payment  Payment?
+  comments Comment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stage])
+  @@index([submittedById])
+  @@index([leadAuditorId])
+}
+
+model AuditRound {
+  id          String       @id @default(cuid())
+  roundNumber Int
+  commitSha   String
+  status      String       @default("active") // active, completed
+  summary     String?
+  auditId     String
+  audit       AuditRequest @relation(fields: [auditId], references: [id])
+  startedAt   DateTime     @default(now())
+  completedAt DateTime?
+}
+
+// ─── FINDINGS ───────────────────────────────────────────
+
+model Finding {
+  id              String   @id @default(cuid())
+  displayId       String   // e.g. "ZYR-9481-001"
+  title           String
+  severity        String   // CRITICAL, HIGH, MEDIUM, LOW, INFORMATIONAL
+  cvss            String?
+  status          String   @default("OPEN") // OPEN, FIX_SUBMITTED, RESOLVED, WONT_FIX
+  taxonomy        String?  // "SWC-107 · CWE-841"
+  location        String?  // "contracts/VaultCore.sol:142"
+  impact          String?
+  description     String
+  vulnerableCode  String?
+  vulnerableLines String?
+  remediatedCode  String?
+  remediationNote String?
+  fuzzTestStatus  String?
+
+  auditId  String
+  audit    AuditRequest @relation(fields: [auditId], references: [id])
+  comments Comment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([auditId])
+  @@index([severity])
+  @@index([status])
+}
+
+// ─── COMMENTS (per-finding + per-audit) ─────────────────
+
+model Comment {
+  id        String        @id @default(cuid())
+  message   String
+  commitRef String?       // client fix commit reference
+  senderId  String
+  sender    User          @relation(fields: [senderId], references: [id])
+  auditId   String?
+  audit     AuditRequest? @relation(fields: [auditId], references: [id])
+  findingId String?
+  finding   Finding?      @relation(fields: [findingId], references: [id])
+  createdAt DateTime      @default(now())
+
+  @@index([auditId])
+  @@index([findingId])
+}
+
+// ─── SCANNER ────────────────────────────────────────────
+
+model ScanJob {
+  id          String       @id @default(cuid())
+  auditId     String
+  audit       AuditRequest @relation(fields: [auditId], references: [id])
+  tool        String       // "slither", "mythril", "aderyn"
+  status      String       @default("queued") // queued, running, completed, failed
+  passNumber  Int?         // e.g. 1 of 14
+  totalPasses Int?
+  logOutput   String?
+  results     String?      // parsed findings JSON string
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+
+  @@index([auditId])
+  @@index([status])
+}
+
+// ─── PAYMENTS ───────────────────────────────────────────
+
+model Payment {
+  id            String       @id @default(cuid())
+  auditId       String       @unique
+  audit         AuditRequest @relation(fields: [auditId], references: [id])
+  method        String       // CRYPTO_ESCROW, CORPORATE_INVOICE
+  amount        Float
+  currency      String       @default("USDC")
+  chainId       Int?
+  escrowTxHash  String?
+  releaseTxHash String?
+  invoiceUrl    String?
+  status        String       @default("PENDING") // PENDING, ESCROWED, PARTIALLY_RELEASED, FULLY_RELEASED, REFUNDED
+  paidAt        DateTime?
+  createdAt     DateTime     @default(now())
+}
