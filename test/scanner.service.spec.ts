@@ -6,6 +6,8 @@ import { PrismaService } from '../src/database/database.module';
 import { GithubService } from '../src/integrations/github.service';
 import { AuditStage, FindingSeverity, FindingStatus } from '../src/common/enum';
 
+import { AiAuditService } from '../src/scanner/ai-audit.service';
+
 describe('ScannerService & TokenScannerService (Unit Tests)', () => {
   let scannerService: ScannerService;
   let tokenScannerService: TokenScannerService;
@@ -79,6 +81,7 @@ describe('ScannerService & TokenScannerService (Unit Tests)', () => {
       providers: [
         ScannerService,
         TokenScannerService,
+        AiAuditService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: GithubService, useValue: mockGithubService },
       ],
@@ -165,7 +168,7 @@ describe('ScannerService & TokenScannerService (Unit Tests)', () => {
         'auraprotocol',
         'aura-contracts',
         42,
-        expect.stringMatching(/Zyron Security Bot/i),
+        expect.stringMatching(/Zyron AI Security Bot/i),
       );
     });
   });

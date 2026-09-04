@@ -30,8 +30,13 @@ export class CreateAuditDto {
 
   @ApiProperty({ example: 2410, description: 'Source lines of code (SLOC)' })
   @IsInt()
-  @Min(1, { message: 'SLOC must be at least 1' })
+  @Min(0, { message: 'SLOC must be a non-negative integer' })
   sloc: number;
+
+  @ApiPropertyOptional({ example: 'pragma solidity ^0.8.20;\ncontract VaultCore {}', description: 'Raw Solidity source code' })
+  @IsOptional()
+  @IsString()
+  sourceCode?: string;
 
   @ApiPropertyOptional({ example: 'Ethereum Mainnet', description: 'Target blockchain network' })
   @IsOptional()

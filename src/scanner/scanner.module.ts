@@ -1,16 +1,44 @@
 import { Module } from '@nestjs/common';
 import { ScannerService } from './scanner.service';
 import { TokenScannerService } from './token-scanner.service';
+import { AiAuditService } from './ai-audit.service';
 import { ScannerGateway } from './scanner.gateway';
 import { ScannerController } from './scanner.controller';
 import { GithubWebhookController } from './github-webhook.controller';
 import { IntegrationsModule } from '../integrations/integrations.module';
 import { AuthModule } from '../auth/auth.module';
+import {
+  TokenRuleScannerService,
+  AiGeminiClientService,
+  AiLocalReasonerService,
+  GithubWebhookHandlerService,
+  ScanOrchestratorService,
+} from './services';
 
 @Module({
   imports: [AuthModule, IntegrationsModule],
   controllers: [ScannerController, GithubWebhookController],
-  providers: [ScannerService, TokenScannerService, ScannerGateway],
-  exports: [ScannerService, TokenScannerService, ScannerGateway],
+  providers: [
+    ScannerService,
+    TokenScannerService,
+    AiAuditService,
+    ScannerGateway,
+    TokenRuleScannerService,
+    AiGeminiClientService,
+    AiLocalReasonerService,
+    GithubWebhookHandlerService,
+    ScanOrchestratorService,
+  ],
+  exports: [
+    ScannerService,
+    TokenScannerService,
+    AiAuditService,
+    ScannerGateway,
+    TokenRuleScannerService,
+    AiGeminiClientService,
+    AiLocalReasonerService,
+    GithubWebhookHandlerService,
+    ScanOrchestratorService,
+  ],
 })
 export class ScannerModule {}

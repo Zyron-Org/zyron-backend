@@ -1,179 +1,47 @@
-import { Injectable, ConflictException, UnauthorizedException, NotFoundException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../database/database.module';
+import { Injectable } from '@nestjs/common';
 import { RegisterDto, LoginDto, SiweVerifyDto, UpdateRoleDto } from './dto/auth.dto';
 import { UserRole } from '../common/enum';
-import * as bcrypt from 'bcrypt';
-import { generateNonce, SiweMessage } from 'siwe';
+import {
+  RegisterService,
+  LoginService,
+  SiweService,
+  UserProfileService,
+} from './services';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private prisma: PrismaService,
-    private jwtService: JwtService,
+    private registerService: RegisterService,
+    private loginService: LoginService,
+    private siweService: SiweService,
+    private userProfileService: UserProfileService,
   ) {}
 
-  async register(dto: RegisterDto) {
-    const existing = await this.prisma.user.findUnique({
-      where: { email: dto.email.toLowerCase() },
-    });
-
-    if (existing) {
-      throw new ConflictException('User with this email address already exists');
-    }
-
-    const saltRounds = 12;
-    const passwordHash = await bcrypt.hash(dto.password, saltRounds);
-
-    let organizationId: string | undefined = undefined;
-
-    if (dto.organizationName) {
-      const org = await this.prisma.organization.create({
-        data: {
-          name: dto.organizationName,
-          tier: 'standard',
-        },
-      });
-      organizationId = org.id;
-    }
-
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email.toLowerCase(),
-        passwordHash,
-        name: dto.name,
-        role: UserRole.CLIENT,
-        organizationId,
-      },
-      include: {
-        organization: true,
-      },
-    });
-
-    const token = this.generateJwt(user);
-    const { passwordHash: _, ...safeUser } = user;
-
-    return {
-      user: safeUser,
-      accessToken: token,
-    };
+  register(dto: RegisterDto) {
+    return this.registerService.register(dto);
   }
 
-  async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email.toLowerCase() },
-      include: { organization: true },
-    });
-
-    if (!user || !user.passwordHash) {
-      throw new UnauthorizedException('Invalid email address or password');
-    }
-
-    const isValidPassword = await bcrypt.compare(dto.password, user.passwordHash);
-
-    if (!isValidPassword) {
-      throw new UnauthorizedException('Invalid email address or password');
-    }
-
-    const token = this.generateJwt(user);
-    const { passwordHash: _, ...safeUser } = user;
-
-    return {
-      user: safeUser,
-      accessToken: token,
-    };
+  login(dto: LoginDto) {
+    return this.loginService.login(dto);
   }
 
-  generateSiweNonce(): { nonce: string } {
-    return { nonce: generateNonce() };
+  generateSiweNonce() {
+    return this.siweService.generateSiweNonce();
   }
 
-  async verifySiwe(dto: SiweVerifyDto) {
-    try {
-      const siweMessage = new SiweMessage(dto.message);
-      const fields = await siweMessage.verify({ signature: dto.signature });
-
-      const walletAddress = fields.data.address.toLowerCase();
-
-      let user = await this.prisma.user.findUnique({
-        where: { walletAddress },
-        include: { organization: true },
-      });
-
-      if (!user) {
-        user = await this.prisma.user.create({
-          data: {
-            email: `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}@wallet.zyron`,
-            walletAddress,
-            name: `Wallet_${walletAddress.slice(0, 6)}`,
-            role: UserRole.CLIENT,
-          },
-          include: { organization: true },
-        });
-      }
-
-      const token = this.generateJwt(user);
-      const { passwordHash: _, ...safeUser } = user;
-
-      return {
-        user: safeUser,
-        accessToken: token,
-      };
-    } catch (e: any) {
-      throw new UnauthorizedException(`SIWE verification failed: ${e.message || 'Invalid signature'}`);
-    }
+  verifySiwe(dto: SiweVerifyDto) {
+    return this.siweService.verifySiwe(dto);
   }
 
-  async getUserProfile(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { organization: true },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User profile not found');
-    }
-
-    const { passwordHash: _, ...safeUser } = user;
-    return safeUser;
+  getUserProfile(userId: string) {
+    return this.userProfileService.getUserProfile(userId);
   }
 
-  async listUsers(roleFilter?: UserRole) {
-    const where = roleFilter ? { role: roleFilter } : {};
-    const users = await this.prisma.user.findMany({
-      where,
-      include: { organization: true },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return users.map(({ passwordHash: _, ...safeUser }) => safeUser);
+  listUsers(roleFilter?: UserRole) {
+    return this.userProfileService.listUsers(roleFilter);
   }
 
-  async updateUserRole(userId: string, dto: UpdateRoleDto) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    const updated = await this.prisma.user.update({
-      where: { id: userId },
-      data: { role: dto.role },
-      include: { organization: true },
-    });
-
-    const { passwordHash: _, ...safeUser } = updated;
-    return safeUser;
-  }
-
-  private generateJwt(user: any): string {
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      organizationId: user.organizationId,
-      walletAddress: user.walletAddress,
-    };
-
-    return this.jwtService.sign(payload);
+  updateUserRole(userId: string, dto: UpdateRoleDto) {
+    return this.userProfileService.updateUserRole(userId, dto);
   }
 }
