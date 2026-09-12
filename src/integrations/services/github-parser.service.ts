@@ -10,7 +10,18 @@ export interface GithubRepoTreeItem {
 
 @Injectable()
 export class GithubParserService {
-  private contractExtensions = ['.sol', '.rs', '.vy', '.move', '.cairo', '.huff'];
+  private primaryContractExtensions = [
+    '.sol', '.rs', '.vy', '.move', '.cairo', '.huff', '.sw', '.tact', '.func', '.circom', '.zok',
+  ];
+
+  private fallbackCodeExtensions = [
+    '.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.java', '.cpp', '.c', '.h', '.hpp', '.json', '.yaml', '.yml', '.toml',
+  ];
+
+  private ignoredPaths = [
+    'node_modules/', '.next/', 'dist/', 'build/', '.git/', 'out/', 'coverage/', 'vendor/',
+    'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock',
+  ];
 
   parseRepoUrl(repoUrl: string): { owner: string; repo: string } {
     if (!repoUrl) {
@@ -31,10 +42,24 @@ export class GithubParserService {
   }
 
   filterContractFiles(tree: GithubRepoTreeItem[]): GithubRepoTreeItem[] {
-    return tree.filter((item) => {
+    const validBlobs = tree.filter((item) => {
       if (item.type !== 'blob' || !item.path) return false;
       const lower = item.path.toLowerCase();
-      return this.contractExtensions.some((ext) => lower.endsWith(ext));
+      return !this.ignoredPaths.some((ignored) => lower.includes(ignored));
+    });
+
+    const primaryMatches = validBlobs.filter((item) => {
+      const lower = item.path.toLowerCase();
+      return this.primaryContractExtensions.some((ext) => lower.endsWith(ext));
+    });
+
+    if (primaryMatches.length > 0) {
+      return primaryMatches;
+    }
+
+    return validBlobs.filter((item) => {
+      const lower = item.path.toLowerCase();
+      return this.fallbackCodeExtensions.some((ext) => lower.endsWith(ext));
     });
   }
 }

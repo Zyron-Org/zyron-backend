@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrganizationService } from '../src/organization/organization.service';
+import { CreateOrganizationService } from '../src/organization/services/create-organization.service';
+import { GetOrganizationService } from '../src/organization/services/get-organization.service';
+import { ManageMemberService } from '../src/organization/services/manage-member.service';
+import { UpdateOrganizationService } from '../src/organization/services/update-organization.service';
 import { PrismaService } from '../src/database/database.module';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 
@@ -44,6 +48,10 @@ describe('OrganizationService (Unit Tests)', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OrganizationService,
+        CreateOrganizationService,
+        GetOrganizationService,
+        ManageMemberService,
+        UpdateOrganizationService,
         { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();

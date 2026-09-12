@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PaymentService } from '../src/payment/payment.service';
+import { EscrowPaymentService } from '../src/payment/services/escrow-payment.service';
+import { InvoicePaymentService } from '../src/payment/services/invoice-payment.service';
 import { PrismaService } from '../src/database/database.module';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { PaymentMethod, PaymentStatus } from '../src/common/enum';
-
 import { BlockchainService } from '../src/blockchain/blockchain.service';
 
 describe('PaymentService (Unit & Integration Tests)', () => {
@@ -51,6 +52,8 @@ describe('PaymentService (Unit & Integration Tests)', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PaymentService,
+        EscrowPaymentService,
+        InvoicePaymentService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: BlockchainService, useValue: mockBlockchainService },
       ],
@@ -150,7 +153,8 @@ describe('PaymentService (Unit & Integration Tests)', () => {
       });
 
       expect(result).toHaveProperty('invoiceNumber');
-      expect(result.terms).toBe('Net-30 Days Wire Transfer');
+      expect(result).toHaveProperty('invoiceUrl');
+      expect(result.invoiceUrl).toContain('ZYR-9481');
     });
 
     it('should throw NotFoundException if generating invoice for non-existent audit ID', async () => {

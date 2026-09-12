@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from '../src/auth/auth.service';
+import { RegisterService } from '../src/auth/services/register.service';
+import { LoginService } from '../src/auth/services/login.service';
+import { SiweService } from '../src/auth/services/siwe.service';
+import { UserProfileService } from '../src/auth/services/user-profile.service';
 import { PrismaService } from '../src/database/database.module';
 import { JwtService } from '@nestjs/jwt';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
@@ -46,6 +50,10 @@ describe('AuthService (Unit Tests)', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
+        RegisterService,
+        LoginService,
+        SiweService,
+        UserProfileService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: JwtService, useValue: mockJwtService },
       ],

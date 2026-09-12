@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/database.module';
 import { CreateFindingDto, UpdateFindingDto } from '../dto/audit.dto';
-import { FindingStatus, UserRole } from '../../common/enum';
+import { AuditStage, FindingStatus, UserRole } from '../../common/enum';
 
 @Injectable()
 export class FindingsService {
@@ -15,6 +15,10 @@ export class FindingsService {
 
     if (!audit) {
       throw new NotFoundException(`Audit ${auditId} not found`);
+    }
+
+    if (audit.stage === AuditStage.COMPLETED) {
+      throw new BadRequestException('Cannot add findings: Target audit is completed and sealed.');
     }
 
     const findingCount = audit.findings.length + 1;
@@ -44,9 +48,16 @@ export class FindingsService {
   }
 
   async updateFinding(findingId: string, dto: UpdateFindingDto, userRole: UserRole) {
-    const finding = await this.prisma.finding.findUnique({ where: { id: findingId } });
+    const finding = await this.prisma.finding.findUnique({
+      where: { id: findingId },
+      include: { audit: true },
+    });
     if (!finding) {
       throw new NotFoundException(`Finding ${findingId} not found`);
+    }
+
+    if (finding.audit?.stage === AuditStage.COMPLETED) {
+      throw new BadRequestException('Cannot modify finding: Target audit is completed and sealed.');
     }
 
     const data: any = {};

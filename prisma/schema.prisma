@@ -72,9 +72,12 @@ model AuditRequest {
   stageNumber      Int        @default(1)
 
   // Source
-  sourceCodeUrl String? // S3 key for uploaded .sol
-  githubRepoUrl String?
-  githubBranch  String?
+  sourceCodeUrl    String? // S3 key for uploaded .sol
+  githubRepoUrl    String?
+  githubBranch     String?
+  sourceHash       String?   // SHA-256 of all source files concatenated
+  compilerSettings String?   // JSON: { version, optimizer, runs }
+  scanTimeoutMs    Int       @default(120000)
 
   // Invariant selections
   invariants String? // JSON string { reentrancy: true, oracle: true }
@@ -85,11 +88,16 @@ model AuditRequest {
   completedAt         DateTime?
 
   // Attestation (filled on completion)
-  bytecodeHash   String?
-  reportPdfUrl   String?
-  pdfSize        String?
-  onChainTxHash  String? // Attestation registry tx
-  onChainChainId Int?
+  bytecodeHash      String?
+  reportPdfUrl      String?
+  pdfSize           String?
+  onChainTxHash     String? // Attestation registry tx
+  onChainChainId    Int?
+  attestationStatus String  @default("AUTOMATED_ONLY") // AUTOMATED_ONLY, PENDING_REVIEW, MANUALLY_ATTESTED, REVOKED
+  merkleRoot        String?
+  attestationSig    String?
+  engineVersion     String  @default("v3.0.0-ast")
+  ruleSetVersion    String  @default("v2026.09")
 
   // Failure
   failureReason String?
@@ -107,6 +115,7 @@ model AuditRequest {
   findings Finding[]
   rounds   AuditRound[]
   scanJobs ScanJob[]
+  scanRuns ScanRun[]
   payment  Payment?
   comments Comment[]
 
@@ -133,21 +142,28 @@ model AuditRound {
 // ─── FINDINGS ───────────────────────────────────────────
 
 model Finding {
-  id              String   @id @default(cuid())
-  displayId       String   // e.g. "ZYR-9481-001"
-  title           String
-  severity        String   // CRITICAL, HIGH, MEDIUM, LOW, INFORMATIONAL
-  cvss            String?
-  status          String   @default("OPEN") // OPEN, FIX_SUBMITTED, RESOLVED, WONT_FIX
-  taxonomy        String?  // "SWC-107 · CWE-841"
-  location        String?  // "contracts/VaultCore.sol:142"
-  impact          String?
-  description     String
-  vulnerableCode  String?
-  vulnerableLines String?
-  remediatedCode  String?
-  remediationNote String?
-  fuzzTestStatus  String?
+  id                      String   @id @default(cuid())
+  displayId               String   // e.g. "ZYR-9481-001"
+  title                   String
+  severity                String   // CRITICAL, HIGH, MEDIUM, LOW, INFORMATIONAL
+  cvss                    String?
+  status                  String   @default("OPEN") // OPEN, FIX_SUBMITTED, RESOLVED, WONT_FIX
+  confidence              String   @default("HIGH_CONFIDENCE") // HIGH_CONFIDENCE, NEEDS_MANUAL_REVIEW, INFORMATIONAL
+  analysisPass            Int?     // Pass 1..14
+  taxonomy                String?  // "SWC-107 · CWE-841"
+  location                String?  // "contracts/VaultCore.sol:142"
+  impact                  String?
+  description             String
+  vulnerableCode          String?
+  vulnerableLines         String?
+  remediatedCode          String?
+  remediationNote         String?
+  fuzzTestStatus          String?
+  isMitigated             Boolean  @default(false)
+  mitigationJustification String?
+  ruleId                  String?  // e.g. "ZYRON-08-001"
+  falsePositive           Boolean  @default(false)
+  fpJustification         String?  // Auditor justification for FP marking
 
   auditId  String
   audit    AuditRequest @relation(fields: [auditId], references: [id])
@@ -197,6 +213,25 @@ model ScanJob {
 
   @@index([auditId])
   @@index([status])
+}
+
+model ScanRun {
+  id              String       @id @default(cuid())
+  auditId         String
+  audit           AuditRequest @relation(fields: [auditId], references: [id])
+  engineVersion   String
+  ruleSetVersion  String
+  sourceHash      String?
+  totalPasses     Int
+  passesCompleted Int          @default(0)
+  findingsCount   Int          @default(0)
+  diagnostics     String?      // JSON array of non-finding diagnostics
+  durationMs      Int?
+  status          String       @default("running")
+  startedAt       DateTime     @default(now())
+  completedAt     DateTime?
+
+  @@index([auditId])
 }
 
 // ─── PAYMENTS ───────────────────────────────────────────

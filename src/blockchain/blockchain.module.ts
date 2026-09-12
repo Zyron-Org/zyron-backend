@@ -4,6 +4,9 @@ import {
   ChainConfigService,
   TransactionVerifierService,
   BytecodeVerifierService,
+  AttestationService,
+  AttestationConfirmerService,
+  AttestationSubmitterService,
 } from './services';
 
 @Global()
@@ -13,12 +16,18 @@ import {
     ChainConfigService,
     TransactionVerifierService,
     BytecodeVerifierService,
+    AttestationService,
+    AttestationConfirmerService,
+    AttestationSubmitterService,
   ],
   exports: [
     BlockchainService,
     ChainConfigService,
     TransactionVerifierService,
     BytecodeVerifierService,
+    AttestationService,
+    AttestationConfirmerService,
+    AttestationSubmitterService,
   ],
 })
 export class BlockchainModule {}

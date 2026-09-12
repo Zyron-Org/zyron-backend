@@ -3,6 +3,9 @@ import {
   ChainConfigService,
   TransactionVerifierService,
   BytecodeVerifierService,
+  AttestationService,
+  AttestationConfirmerService,
+  AttestationSubmitterService,
   ChainConfig,
 } from './services';
 
@@ -12,6 +15,9 @@ export class BlockchainService {
     private chainConfig: ChainConfigService,
     private txVerifier: TransactionVerifierService,
     private bytecodeVerifier: BytecodeVerifierService,
+    private attestation: AttestationService,
+    private attestationConfirmer: AttestationConfirmerService,
+    private attestationSubmitter: AttestationSubmitterService,
   ) {}
 
   getChainConfig(chainId: number): ChainConfig | undefined {
@@ -36,5 +42,26 @@ export class BlockchainService {
 
   getExplorerTxUrl(chainId: number, txHash: string): string {
     return this.txVerifier.getExplorerTxUrl(chainId, txHash);
+  }
+
+  // ─── Attestation Delegates ────────────────────────────
+  buildAttestationPayload(auditId: string) {
+    return this.attestation.buildAttestationPayload(auditId);
+  }
+
+  computeFindingsMerkleRoot(findings: { displayId: string; severity: string }[]) {
+    return this.attestation.computeFindingsMerkleRoot(findings);
+  }
+
+  submitAutomatedAttestation(auditId: string, chainId?: number) {
+    return this.attestationSubmitter.submitAutomatedAttestation(auditId, chainId);
+  }
+
+  confirmAttestation(auditId: string, signature: string, merkleRoot: string, txHash?: string) {
+    return this.attestationConfirmer.confirmAttestation(auditId, signature, merkleRoot, txHash);
+  }
+
+  revokeAttestation(auditId: string, reason: string) {
+    return this.attestationConfirmer.revokeAttestation(auditId, reason);
   }
 }

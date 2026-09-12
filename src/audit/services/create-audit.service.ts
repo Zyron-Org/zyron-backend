@@ -1,14 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../database/database.module';
 import { CreateAuditDto } from '../dto/audit.dto';
 import { AuditStage } from '../../common/enum';
 import { AuditSanitizerService } from './audit-sanitizer.service';
+import { ScanOrchestratorService } from '../../scanner/services/scan-orchestrator.service';
 
 @Injectable()
 export class CreateAuditService {
   constructor(
     private prisma: PrismaService,
     private sanitizer: AuditSanitizerService,
+    @Inject(forwardRef(() => ScanOrchestratorService))
+    private scanOrchestrator: ScanOrchestratorService,
   ) {}
 
   async createAudit(userId: string, organizationId: string | undefined, dto: CreateAuditDto) {
@@ -41,6 +44,13 @@ export class CreateAuditService {
         findings: true,
       },
     });
+
+    // Auto-trigger security AST scan asynchronously
+    if (this.scanOrchestrator) {
+      this.scanOrchestrator.runScan(audit.id, dto.sourceCode).catch((err) => {
+        console.warn(`Auto-scan execution for ${audit.id} failed:`, err.message);
+      });
+    }
 
     return this.sanitizer.sanitizeAuditResult(audit);
   }

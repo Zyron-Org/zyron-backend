@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { StorageService } from '../src/aws/storage.service';
+import { ContractValidatorService } from '../src/aws/services/contract-validator.service';
+import { S3StorageService } from '../src/aws/services/s3-storage.service';
 import { BadRequestException } from '@nestjs/common';
 
 describe('StorageService (Unit Tests)', () => {
@@ -8,7 +10,11 @@ describe('StorageService (Unit Tests)', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [StorageService],
+      providers: [
+        StorageService,
+        ContractValidatorService,
+        S3StorageService,
+      ],
     }).compile();
 
     storageService = module.get<StorageService>(StorageService);

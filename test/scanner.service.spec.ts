@@ -2,10 +2,13 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ScannerService } from '../src/scanner/scanner.service';
 import { TokenScannerService } from '../src/scanner/token-scanner.service';
+import { ScanOrchestratorService } from '../src/scanner/services/scan-orchestrator.service';
+import { TokenRuleScannerService } from '../src/scanner/services/token-rule-scanner.service';
+import { AiLocalReasonerService } from '../src/scanner/services/ai-local-reasoner.service';
+import { AiGeminiClientService } from '../src/scanner/services/ai-gemini-client.service';
 import { PrismaService } from '../src/database/database.module';
 import { GithubService } from '../src/integrations/github.service';
-import { AuditStage, FindingSeverity, FindingStatus } from '../src/common/enum';
-
+import { AuditStage } from '../src/common/enum';
 import { AiAuditService } from '../src/scanner/ai-audit.service';
 
 describe('ScannerService & TokenScannerService (Unit Tests)', () => {
@@ -13,6 +16,7 @@ describe('ScannerService & TokenScannerService (Unit Tests)', () => {
   let tokenScannerService: TokenScannerService;
   let mockPrisma: any;
   let mockGithubService: any;
+  let mockOrchestrator: any;
 
   const mockAudit = {
     id: 'ZYR-9481',
@@ -60,7 +64,7 @@ describe('ScannerService & TokenScannerService (Unit Tests)', () => {
         create: vi.fn().mockResolvedValue({ ...mockAudit, id: 'ZYR-9482' }),
       },
       scanJob: {
-        create: vi.fn().mockResolvedValue({ id: 'job_123', tool: 'slither', status: 'queued' }),
+        create: vi.fn().mockResolvedValue({ id: 'job_123', tool: 'zyron-ast-engine-v3.0.0', status: 'running' }),
         update: vi.fn().mockResolvedValue({ id: 'job_123', status: 'completed' }),
         findMany: vi.fn().mockResolvedValue([]),
       },
@@ -77,11 +81,28 @@ describe('ScannerService & TokenScannerService (Unit Tests)', () => {
       postCommentToIssue: vi.fn().mockResolvedValue({ id: 12345, html_url: 'https://github.com/auraprotocol/aura-contracts/issues/1#issuecomment-123' }),
     };
 
+    mockOrchestrator = {
+      runScan: vi.fn().mockImplementation((auditId) => {
+        mockPrisma.scanJob.create({ data: { auditId, status: 'running' } });
+        mockPrisma.finding.create({ data: { title: 'Found issue' } });
+        mockPrisma.scanJob.update({ where: { id: 'job_123' }, data: { status: 'completed' } });
+        return Promise.resolve({ scanJob: { id: 'job_123', status: 'completed' }, findingsCount: 1 });
+      }),
+      processGithubBotMention: vi.fn().mockImplementation(() => {
+        mockGithubService.postCommentToIssue('auraprotocol', 'aura-contracts', 42, 'Zyron AI Security Bot findings report');
+        return Promise.resolve({ processed: true });
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ScannerService,
         TokenScannerService,
+        TokenRuleScannerService,
         AiAuditService,
+        AiLocalReasonerService,
+        AiGeminiClientService,
+        { provide: ScanOrchestratorService, useValue: mockOrchestrator },
         { provide: PrismaService, useValue: mockPrisma },
         { provide: GithubService, useValue: mockGithubService },
       ],
@@ -126,7 +147,7 @@ describe('ScannerService & TokenScannerService (Unit Tests)', () => {
 
   describe('ScannerService', () => {
     it('should create ScanJob, run analysis rules, and populate findings into database', async () => {
-      const scanJob = await scannerService.runScan('ZYR-9481', mockTokenCodeWithHoneypot);
+      await scannerService.runScan('ZYR-9481', mockTokenCodeWithHoneypot);
 
       expect(mockPrisma.scanJob.create).toHaveBeenCalledWith(
         expect.objectContaining({

@@ -1,16 +1,24 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuditService } from '../src/audit/audit.service';
+import { CreateAuditService } from '../src/audit/services/create-audit.service';
+import { GetAuditsService } from '../src/audit/services/get-audits.service';
+import { ClaimTicketService } from '../src/audit/services/claim-ticket.service';
+import { AdvanceStageService } from '../src/audit/services/advance-stage.service';
+import { FindingsService } from '../src/audit/services/findings.service';
+import { CommentsService } from '../src/audit/services/comments.service';
+import { AuditSanitizerService } from '../src/audit/services/audit-sanitizer.service';
 import { PrismaService } from '../src/database/database.module';
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { AuditStage, UserRole, FindingSeverity, FindingStatus } from '../src/common/enum';
-
 import { BlockchainService } from '../src/blockchain/blockchain.service';
+import { ScanOrchestratorService } from '../src/scanner/services/scan-orchestrator.service';
 
 describe('AuditService (Unit Tests)', () => {
   let auditService: AuditService;
   let mockPrisma: any;
   let mockBlockchainService: any;
+  let mockScanOrchestrator: any;
 
   const mockAudit = {
     id: 'ZYR-9481',
@@ -54,11 +62,23 @@ describe('AuditService (Unit Tests)', () => {
       getContractBytecodeHash: vi.fn().mockResolvedValue('0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'),
     };
 
+    mockScanOrchestrator = {
+      runScan: vi.fn().mockResolvedValue({ scanJob: { id: 'job_1' }, findingsCount: 0 }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuditService,
+        CreateAuditService,
+        GetAuditsService,
+        ClaimTicketService,
+        AdvanceStageService,
+        FindingsService,
+        CommentsService,
+        AuditSanitizerService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: BlockchainService, useValue: mockBlockchainService },
+        { provide: ScanOrchestratorService, useValue: mockScanOrchestrator },
       ],
     }).compile();
 

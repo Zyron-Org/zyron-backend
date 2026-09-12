@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AiAuditService } from '../src/scanner/ai-audit.service';
-import { FindingSeverity } from '../src/common/enum';
+import { AiLocalReasonerService } from '../src/scanner/services/ai-local-reasoner.service';
+import { AiGeminiClientService } from '../src/scanner/services/ai-gemini-client.service';
 
 describe('AiAuditService (Unit Tests)', () => {
   let aiAuditService: AiAuditService;
@@ -21,7 +22,11 @@ describe('AiAuditService (Unit Tests)', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AiAuditService],
+      providers: [
+        AiAuditService,
+        AiLocalReasonerService,
+        AiGeminiClientService,
+      ],
     }).compile();
 
     aiAuditService = module.get<AiAuditService>(AiAuditService);

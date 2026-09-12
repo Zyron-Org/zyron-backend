@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { GithubService } from '../src/integrations/github.service';
+import { GithubParserService } from '../src/integrations/services/github-parser.service';
+import { GithubApiService } from '../src/integrations/services/github-api.service';
+import { GithubCommentService } from '../src/integrations/services/github-comment.service';
 import { BadRequestException } from '@nestjs/common';
 
 describe('GithubService (Unit Tests)', () => {
@@ -8,7 +11,12 @@ describe('GithubService (Unit Tests)', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [GithubService],
+      providers: [
+        GithubService,
+        GithubParserService,
+        GithubApiService,
+        GithubCommentService,
+      ],
     }).compile();
 
     githubService = module.get<GithubService>(GithubService);

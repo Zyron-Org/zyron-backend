@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ScannerService } from './scanner.service';
 import { TokenScannerService } from './token-scanner.service';
 import { AiAuditService } from './ai-audit.service';
@@ -7,16 +7,22 @@ import { ScannerController } from './scanner.controller';
 import { GithubWebhookController } from './github-webhook.controller';
 import { IntegrationsModule } from '../integrations/integrations.module';
 import { AuthModule } from '../auth/auth.module';
+import { AuditModule } from '../audit/audit.module';
+import { ScannerEngineModule } from './engine/scanner-engine.module';
+import { PassRegistryService } from './passes/pass-registry';
 import {
   TokenRuleScannerService,
   AiGeminiClientService,
   AiLocalReasonerService,
   GithubWebhookHandlerService,
+  LegacyScanRunnerService,
+  ASTEngineRunnerService,
+  FindingPersisterService,
   ScanOrchestratorService,
 } from './services';
 
 @Module({
-  imports: [AuthModule, IntegrationsModule],
+  imports: [AuthModule, IntegrationsModule, forwardRef(() => AuditModule), ScannerEngineModule],
   controllers: [ScannerController, GithubWebhookController],
   providers: [
     ScannerService,
@@ -27,6 +33,10 @@ import {
     AiGeminiClientService,
     AiLocalReasonerService,
     GithubWebhookHandlerService,
+    PassRegistryService,
+    LegacyScanRunnerService,
+    ASTEngineRunnerService,
+    FindingPersisterService,
     ScanOrchestratorService,
   ],
   exports: [
@@ -38,6 +48,10 @@ import {
     AiGeminiClientService,
     AiLocalReasonerService,
     GithubWebhookHandlerService,
+    PassRegistryService,
+    LegacyScanRunnerService,
+    ASTEngineRunnerService,
+    FindingPersisterService,
     ScanOrchestratorService,
   ],
 })
