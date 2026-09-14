@@ -16,7 +16,7 @@ export class GithubWebhookHandlerService {
 
   async processGithubBotMention(payload: any) {
     const commentText = payload.comment?.body || '';
-    if (!commentText.includes('@zyron-bot') && !commentText.includes('@zamaron-bot')) {
+    if (!commentText.includes('@zyron-bot')) {
       return { triggered: false, reason: 'No bot mention in comment' };
     }
 
