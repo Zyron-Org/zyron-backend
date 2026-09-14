@@ -8,8 +8,16 @@ export enum AuditStage {
   PENDING = 'PENDING',
   SCANNING = 'SCANNING',
   IN_REVIEW = 'IN_REVIEW',
+  CORRECTIONS_REQUESTED = 'CORRECTIONS_REQUESTED',
   COMPLETED = 'COMPLETED',
   FAILED = 'FAILED',
+}
+
+export enum AuditorOnboardingStatus {
+  APPLICANT = 'APPLICANT',
+  BENCHMARK_PASSED = 'BENCHMARK_PASSED',
+  ACTIVE = 'ACTIVE',
+  SUSPENDED = 'SUSPENDED',
 }
 
 export enum FindingSeverity {

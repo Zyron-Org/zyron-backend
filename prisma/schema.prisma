@@ -19,6 +19,9 @@ model User {
   avatarUrl       String?
   auditorHandle   String?       // e.g. "0xAuditor_K4"
   specialization  String?
+  isAvailable     Boolean       @default(true)
+  maxConcurrentAudits Int       @default(3)
+  onboardingStatus String       @default("ACTIVE") // APPLICANT, BENCHMARK_PASSED, ACTIVE, SUSPENDED
   organizationId  String?
   organization    Organization? @relation(fields: [organizationId], references: [id])
   createdAt       DateTime      @default(now())
@@ -68,7 +71,7 @@ model AuditRequest {
   compilerVersion  String
   network          String     @default("Ethereum Mainnet")
   sloc             Int
-  stage            String     @default("PENDING") // PENDING, SCANNING, IN_REVIEW, COMPLETED, FAILED
+  stage            String     @default("PENDING") // PENDING, SCANNING, IN_REVIEW, CORRECTIONS_REQUESTED, COMPLETED, FAILED
   stageNumber      Int        @default(1)
 
   // Source

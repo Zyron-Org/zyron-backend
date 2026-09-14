@@ -8,6 +8,7 @@ import {
   AdvanceStageService,
   FindingsService,
   CommentsService,
+  AutoAssignService,
 } from './services';
 
 @Injectable()
@@ -19,10 +20,15 @@ export class AuditService {
     private advanceStageService: AdvanceStageService,
     private findingsService: FindingsService,
     private commentsService: CommentsService,
+    private autoAssignService: AutoAssignService,
   ) {}
 
   createAudit(userId: string, organizationId: string | undefined, dto: CreateAuditDto) {
     return this.createAuditService.createAudit(userId, organizationId, dto);
+  }
+
+  autoAssignAudit(auditId: string) {
+    return this.autoAssignService.autoAssignAudit(auditId);
   }
 
   findAllAudits(userId: string, role: UserRole, organizationId?: string, stageFilter?: AuditStage) {

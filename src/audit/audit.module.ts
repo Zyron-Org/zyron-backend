@@ -12,6 +12,7 @@ import {
   AdvanceStageService,
   FindingsService,
   CommentsService,
+  AutoAssignService,
 } from './services';
 
 @Module({
@@ -26,6 +27,7 @@ import {
     AdvanceStageService,
     FindingsService,
     CommentsService,
+    AutoAssignService,
   ],
   exports: [
     AuditService,
@@ -36,6 +38,7 @@ import {
     AdvanceStageService,
     FindingsService,
     CommentsService,
+    AutoAssignService,
   ],
 })
 export class AuditModule {}

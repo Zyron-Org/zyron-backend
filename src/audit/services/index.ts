@@ -5,3 +5,4 @@ export * from './claim-ticket.service';
 export * from './advance-stage.service';
 export * from './findings.service';
 export * from './comments.service';
+export * from './auto-assign.service';

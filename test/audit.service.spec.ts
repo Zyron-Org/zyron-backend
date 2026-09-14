@@ -14,6 +14,8 @@ import { AuditStage, UserRole, FindingSeverity, FindingStatus } from '../src/com
 import { BlockchainService } from '../src/blockchain/blockchain.service';
 import { ScanOrchestratorService } from '../src/scanner/services/scan-orchestrator.service';
 
+import { AutoAssignService } from '../src/audit/services/auto-assign.service';
+
 describe('AuditService (Unit Tests)', () => {
   let auditService: AuditService;
   let mockPrisma: any;
@@ -41,9 +43,12 @@ describe('AuditService (Unit Tests)', () => {
       auditRequest: {
         count: vi.fn().mockResolvedValue(0),
         create: vi.fn(),
-        findMany: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([]),
         findUnique: vi.fn(),
         update: vi.fn(),
+      },
+      user: {
+        findMany: vi.fn().mockResolvedValue([]),
       },
       finding: {
         create: vi.fn(),
@@ -75,6 +80,7 @@ describe('AuditService (Unit Tests)', () => {
         AdvanceStageService,
         FindingsService,
         CommentsService,
+        AutoAssignService,
         AuditSanitizerService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: BlockchainService, useValue: mockBlockchainService },

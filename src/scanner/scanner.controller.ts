@@ -27,10 +27,20 @@ export class ScannerController {
   @Post('analyze-token')
   @ApiOperation({ summary: 'Run instant token security analysis (honeypot, minting, pause, blacklist risks)' })
   async analyzeToken(@Body() dto: ScanTokenDto) {
+    if (dto.contractAddress) {
+      return this.tokenScanner.analyzeTokenByAddress(dto.contractAddress, dto.chainId || 1);
+    }
     return this.tokenScanner.analyzeTokenCode(
-      dto.contractFileName,
-      `// Token contract analysis for ${dto.contractFileName}`,
+      dto.contractFileName || 'Token.sol',
+      `// Token contract analysis for ${dto.contractFileName || 'Token.sol'}`,
     );
+  }
+
+  @Post('analyze-token-address')
+  @ApiOperation({ summary: 'Run instant token security analysis directly using token contract address & chain ID' })
+  async analyzeTokenByAddress(@Body() dto: ScanTokenDto) {
+    const targetAddr = dto.contractAddress || dto.contractFileName;
+    return this.tokenScanner.analyzeTokenByAddress(targetAddr, dto.chainId || 1);
   }
 
   @Post('ai-audit')

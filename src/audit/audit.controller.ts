@@ -43,6 +43,27 @@ export class AuditController {
     return this.auditService.claimTicket(id, user.id);
   }
 
+  @Patch(':id/auto-assign')
+  @Roles(UserRole.ADMIN, UserRole.AUDITOR)
+  @ApiOperation({ summary: 'Trigger load-balanced auto-assignment of lead auditor' })
+  async autoAssignTicket(@Param('id') id: string) {
+    return this.auditService.autoAssignAudit(id);
+  }
+
+  @Patch(':id/flag-corrections')
+  @Roles(UserRole.AUDITOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Flag audit for client corrections & request remediation pass (Auditor / Admin)' })
+  async flagForCorrections(@Param('id') id: string) {
+    return this.auditService.advanceStage(id, { stage: AuditStage.CORRECTIONS_REQUESTED });
+  }
+
+  @Patch(':id/submit-fixes')
+  @Roles(UserRole.CLIENT, UserRole.ADMIN, UserRole.AUDITOR)
+  @ApiOperation({ summary: 'Client submits fix commit SHA and requests Round 2 re-verification' })
+  async submitFixes(@Param('id') id: string, @Body() body: { gitCommit?: string }) {
+    return this.auditService.advanceStage(id, { stage: AuditStage.IN_REVIEW });
+  }
+
   @Patch(':id/stage')
   @Roles(UserRole.AUDITOR, UserRole.ADMIN)
   @ApiOperation({ summary: 'Advance audit lifecycle stage (Auditor / Admin only)' })

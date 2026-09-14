@@ -3,6 +3,7 @@ import { PrismaService } from '../../database/database.module';
 import { CreateAuditDto } from '../dto/audit.dto';
 import { AuditStage } from '../../common/enum';
 import { AuditSanitizerService } from './audit-sanitizer.service';
+import { AutoAssignService } from './auto-assign.service';
 import { ScanOrchestratorService } from '../../scanner/services/scan-orchestrator.service';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class CreateAuditService {
   constructor(
     private prisma: PrismaService,
     private sanitizer: AuditSanitizerService,
+    private autoAssignService: AutoAssignService,
     @Inject(forwardRef(() => ScanOrchestratorService))
     private scanOrchestrator: ScanOrchestratorService,
   ) {}
@@ -42,8 +44,19 @@ export class CreateAuditService {
         submittedBy: true,
         organization: true,
         findings: true,
+        leadAuditor: true,
       },
     });
+
+    // Auto-assign to available auditor
+    try {
+      const assigned = await this.autoAssignService.autoAssignAudit(audit.id);
+      if (assigned) {
+        Object.assign(audit, assigned);
+      }
+    } catch (err: any) {
+      console.warn(`Auto-assign for ${audit.id} failed:`, err.message);
+    }
 
     // Auto-trigger security AST scan asynchronously
     if (this.scanOrchestrator) {

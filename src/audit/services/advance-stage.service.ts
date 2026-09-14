@@ -39,12 +39,27 @@ export class AdvanceStageService {
     let stageNumber = 1;
     if (dto.stage === AuditStage.SCANNING) stageNumber = 2;
     if (dto.stage === AuditStage.IN_REVIEW) stageNumber = 3;
+    if (dto.stage === AuditStage.CORRECTIONS_REQUESTED) stageNumber = 3;
     if (dto.stage === AuditStage.COMPLETED) stageNumber = 4;
 
     const data: any = {
       stage: dto.stage,
       stageNumber,
     };
+
+    if (dto.stage === AuditStage.CORRECTIONS_REQUESTED) {
+      // Create or increment AuditRound for remediation pass
+      const roundCount = await this.prisma.auditRound.count({ where: { auditId } });
+      await this.prisma.auditRound.create({
+        data: {
+          roundNumber: roundCount + 1,
+          commitSha: audit.gitCommit || 'latest',
+          status: 'active',
+          summary: 'Auditor flagged findings for client remediation',
+          auditId,
+        },
+      });
+    }
 
     if (dto.stage === AuditStage.COMPLETED) {
       data.completedAt = new Date();
