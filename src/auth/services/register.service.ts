@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../database/database.module';
 import { RegisterDto } from '../dto/auth.dto';
 import { UserRole } from '../../common/enum';
+import { EmailVerificationService } from './email-verification.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class RegisterService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private emailVerificationService: EmailVerificationService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -43,20 +45,29 @@ export class RegisterService {
         name: dto.name,
         role: UserRole.CLIENT,
         organizationId,
+        emailVerified: false,
       },
       include: {
         organization: true,
       },
     });
 
-    const token = this.generateJwt(user);
+    // Generate single-use verification token & dispatch verification email
+    await this.emailVerificationService.createVerificationToken({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+    });
+
     const { passwordHash: _, ...safeUser } = user;
 
     return {
       user: safeUser,
-      accessToken: token,
+      message: 'Registration successful. Please check your email to verify your account before logging in.',
+      requiresEmailVerification: true,
     };
   }
+
 
   generateJwt(user: any): string {
     const payload = {

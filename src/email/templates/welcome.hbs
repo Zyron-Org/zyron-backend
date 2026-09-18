@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Zyron</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #07090e;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrapper {
+      width: 100%;
+      background-color: #07090e;
+      padding: 40px 0;
+    }
+    .container {
+      max-width: 580px;
+      margin: 0 auto;
+      background-color: #0d1117;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    }
+    .header {
+      padding: 24px 32px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      background: linear-gradient(180deg, rgba(16, 24, 39, 0.8) 0%, rgba(13, 17, 23, 0.8) 100%);
+    }
+    .logo-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background-color: rgba(0, 229, 191, 0.1);
+      border: 1px solid rgba(0, 229, 191, 0.3);
+      border-radius: 4px;
+      color: #00e5bf;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      font-family: monospace;
+    }
+    .content {
+      padding: 36px 32px;
+    }
+    h1 {
+      margin: 0 0 16px 0;
+      font-size: 20px;
+      color: #ffffff;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+    }
+    p {
+      margin: 0 0 16px 0;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #94a3b8;
+    }
+    .accent {
+      color: #00e5bf;
+      font-weight: 600;
+    }
+    .info-card {
+      background-color: #090d13;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 6px;
+      padding: 16px;
+      margin: 20px 0;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .info-row {
+      display: flex;
+      margin-bottom: 6px;
+    }
+    .info-row:last-child {
+      margin-bottom: 0;
+    }
+    .info-label {
+      color: #64748b;
+      width: 140px;
+    }
+    .info-val {
+      color: #cbd5e1;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 28px;
+      background-color: #00e5bf;
+      color: #07090e !important;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      border-radius: 4px;
+      margin-top: 12px;
+      text-transform: uppercase;
+      font-family: monospace;
+    }
+    .footer {
+      padding: 24px 32px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      background-color: #090d13;
+      text-align: center;
+      font-size: 11px;
+      color: #64748b;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="header">
+        <span class="logo-badge">ZYRON // PROTOCOL SECURITY</span>
+      </div>
+      <div class="content">
+        <h1>Welcome to Zyron, <span class="accent">{{userName}}</span></h1>
+        <p>Your security engagement workspace is ready. You now have full access to automated AST taint scanning, auditor workbenches, and cryptographic on-chain attestations.</p>
+        
+        {{#if orgName}}
+        <div class="info-card">
+          <div class="info-row">
+            <span class="info-label">// PROTOCOL:</span>
+            <span class="info-val">{{orgName}}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">// STATUS:</span>
+            <span class="info-val" style="color: #00e5bf;">ACTIVE_ENGAGEMENT</span>
+          </div>
+        </div>
+        {{/if}}
+
+        <p>You can now submit smart contract audit scopes, monitor real-time vulnerability scan passes, and collaborate with lead auditors.</p>
+
+        <div style="text-align: center; margin: 28px 0;">
+          <a href="{{loginUrl}}" class="btn">Launch Portal &rarr;</a>
+        </div>
+
+        <p style="font-size: 12px; color: #64748b; margin-bottom: 0;">
+          If you did not create this account, please contact our security team immediately at security@zyron.labs.
+        </p>
+      </div>
+      <div class="footer">
+        <div>ZYRON SECURITY PROTOCOL &bull; AUTONOMOUS SMART CONTRACT AUDIT</div>
+        <div style="margin-top: 8px;">&copy; {{currentYear}} Zyron Protocol Labs. All rights reserved.</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

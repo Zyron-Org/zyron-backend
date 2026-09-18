@@ -8,6 +8,8 @@ import {
   LoginService,
   SiweService,
   UserProfileService,
+  PasswordResetService,
+  EmailVerificationService,
 } from './services';
 
 @Module({
@@ -24,6 +26,8 @@ import {
     LoginService,
     SiweService,
     UserProfileService,
+    PasswordResetService,
+    EmailVerificationService,
   ],
   exports: [
     AuthService,
@@ -31,7 +35,11 @@ import {
     LoginService,
     SiweService,
     UserProfileService,
+    PasswordResetService,
+    EmailVerificationService,
     JwtModule,
   ],
 })
 export class AuthModule {}
+
+

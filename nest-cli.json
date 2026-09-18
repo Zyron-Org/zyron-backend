@@ -4,6 +4,6 @@
   "sourceRoot": "src",
   "compilerOptions": {
     "deleteOutDir": true,
-    "assets": ["**/*.html"]
+    "assets": ["**/*.html", "**/*.hbs"]
   }
 }

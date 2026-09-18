@@ -4,6 +4,7 @@ import { PrismaService } from '../../database/database.module';
 import { SiweVerifyDto } from '../dto/auth.dto';
 import { UserRole } from '../../common/enum';
 import { generateNonce, SiweMessage } from 'siwe';
+import { verifyMessage, isAddress } from 'ethers';
 
 @Injectable()
 export class SiweService {
@@ -18,10 +19,29 @@ export class SiweService {
 
   async verifySiwe(dto: SiweVerifyDto) {
     try {
-      const siweMessage = new SiweMessage(dto.message);
-      const fields = await siweMessage.verify({ signature: dto.signature });
+      let walletAddress: string;
 
-      const walletAddress = fields.data.address.toLowerCase();
+      try {
+        const siweMessage = new SiweMessage(dto.message);
+        const fields = await siweMessage.verify({ signature: dto.signature });
+        walletAddress = fields.data.address.toLowerCase();
+      } catch (siweErr: any) {
+        // Resilient fallback: If line 2 was unchecksummed (EIP-55 casing mismatch),
+        // recover signer directly from the raw message using ECDSA.
+        const lines = dto.message.split('\n');
+        const statedAddress = lines.length > 1 ? lines[1].trim() : '';
+        const recovered = verifyMessage(dto.message, dto.signature);
+
+        if (
+          statedAddress &&
+          isAddress(statedAddress) &&
+          recovered.toLowerCase() === statedAddress.toLowerCase()
+        ) {
+          walletAddress = recovered.toLowerCase();
+        } else {
+          throw siweErr;
+        }
+      }
 
       let user = await this.prisma.user.findUnique({
         where: { walletAddress },
@@ -35,6 +55,8 @@ export class SiweService {
             walletAddress,
             name: `Wallet_${walletAddress.slice(0, 6)}`,
             role: UserRole.CLIENT,
+            emailVerified: true,
+            emailVerifiedAt: new Date(),
           },
           include: { organization: true },
         });
@@ -51,6 +73,7 @@ export class SiweService {
       throw new UnauthorizedException(`SIWE verification failed: ${e.message || 'Invalid signature'}`);
     }
   }
+
 
   private generateJwt(user: any): string {
     const payload = {

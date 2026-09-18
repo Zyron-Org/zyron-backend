@@ -12,6 +12,7 @@ import { PaymentModule } from './payment/payment.module';
 import { BlockchainModule } from './blockchain/blockchain.module';
 import { OrganizationModule } from './organization/organization.module';
 import { ScannerModule } from './scanner/scanner.module';
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
@@ -29,7 +30,9 @@ import { ScannerModule } from './scanner/scanner.module';
     PaymentModule,
     OrganizationModule,
     ScannerModule,
+    EmailModule,
   ],
+
   providers: [
     {
       provide: APP_GUARD,

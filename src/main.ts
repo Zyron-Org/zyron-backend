@@ -60,4 +60,7 @@ async function bootstrap() {
   console.log(`📚 Interactive Swagger OpenAPI Docs available at: http://localhost:${PORT}/docs (User: ${SWAGGER_USER})`);
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  console.error("CRITICAL BOOTSTRAP ERROR:", err);
+  process.exit(1);
+});

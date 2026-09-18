@@ -5,6 +5,8 @@ import { RegisterService } from '../src/auth/services/register.service';
 import { LoginService } from '../src/auth/services/login.service';
 import { SiweService } from '../src/auth/services/siwe.service';
 import { UserProfileService } from '../src/auth/services/user-profile.service';
+import { PasswordResetService } from '../src/auth/services/password-reset.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../src/database/database.module';
 import { JwtService } from '@nestjs/jwt';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
@@ -17,6 +19,7 @@ describe('AuthService (Unit Tests)', () => {
   let authService: AuthService;
   let mockPrisma: any;
   let mockJwtService: any;
+  let mockEventEmitter: any;
 
   const mockUser = {
     id: 'usr_123',
@@ -41,10 +44,21 @@ describe('AuthService (Unit Tests)', () => {
       organization: {
         create: vi.fn().mockResolvedValue({ id: 'org_123', name: 'Aura Finance DAO' }),
       },
+      passwordResetToken: {
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        updateMany: vi.fn(),
+      },
+      $transaction: vi.fn().mockImplementation((promises) => Promise.all(promises)),
     };
 
     mockJwtService = {
       sign: vi.fn().mockReturnValue('mocked_jwt_access_token'),
+    };
+
+    mockEventEmitter = {
+      emit: vi.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -54,10 +68,13 @@ describe('AuthService (Unit Tests)', () => {
         LoginService,
         SiweService,
         UserProfileService,
+        PasswordResetService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: JwtService, useValue: mockJwtService },
+        { provide: EventEmitter2, useValue: mockEventEmitter },
       ],
     }).compile();
+
 
     authService = module.get<AuthService>(AuthService);
   });

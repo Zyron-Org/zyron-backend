@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../database/database.module';
 import { LoginDto } from '../dto/auth.dto';
@@ -25,6 +25,12 @@ export class LoginService {
 
     if (!isValidPassword) {
       throw new UnauthorizedException('Invalid email address or password');
+    }
+
+    if (!user.emailVerified) {
+      throw new ForbiddenException(
+        'Please verify your email address before signing in. Check your inbox for the verification link.',
+      );
     }
 
     const token = this.generateJwt(user);

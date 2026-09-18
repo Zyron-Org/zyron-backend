@@ -184,7 +184,7 @@ describe('ScannerService & TokenScannerService (Unit Tests)', () => {
 
       const result = await scannerService.processGithubBotMention(webhookPayload);
 
-      expect(result.processed).toBe(true);
+      expect(result.triggered).toBe(true);
       expect(mockGithubService.postCommentToIssue).toHaveBeenCalledWith(
         'auraprotocol',
         'aura-contracts',

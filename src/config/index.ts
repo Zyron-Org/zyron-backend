@@ -17,3 +17,11 @@ export const origins = (process.env.CORS_ORIGINS || 'http://localhost:3000,http:
 export const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://zyron:zyron_secret_password@localhost:5432/zyron_db?schema=public';
 export const REDIS_HOST = process.env.REDIS_HOST || '127.0.0.1';
 export const REDIS_PORT = parseInt(process.env.REDIS_PORT || '6379', 10);
+
+export const SMTP_HOST = process.env.SMTP_HOST || '';
+export const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
+export const SMTP_USER = process.env.SMTP_USER || '';
+export const SMTP_PASS = process.env.SMTP_PASS || '';
+export const SMTP_FROM = process.env.SMTP_FROM || 'noreply@zyron.security';
+export const APP_URL = process.env.APP_URL || 'http://localhost:3000';
+
