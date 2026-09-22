@@ -55,8 +55,8 @@ export class AuditService {
     return this.findingsService.updateFinding(findingId, dto, userRole);
   }
 
-  findFindingsByAudit(auditId: string) {
-    return this.findingsService.findFindingsByAudit(auditId);
+  findFindingsByAudit(auditId: string, role?: UserRole) {
+    return this.findingsService.findFindingsByAudit(auditId, role);
   }
 
   createFindingComment(findingId: string, senderId: string, dto: CreateCommentDto) {

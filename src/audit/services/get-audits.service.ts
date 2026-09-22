@@ -37,7 +37,17 @@ export class GetAuditsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return audits.map((a) => this.sanitizer.sanitizeAuditResult(a));
+    return audits.map((a) => {
+      // Clients only see findings once auditor has approved and sent them for fixes (CORRECTIONS_REQUESTED or COMPLETED)
+      if (
+        role === UserRole.CLIENT &&
+        a.stage !== AuditStage.CORRECTIONS_REQUESTED &&
+        a.stage !== AuditStage.COMPLETED
+      ) {
+        a.findings = [];
+      }
+      return this.sanitizer.sanitizeAuditResult(a);
+    });
   }
 
   async findOneAudit(auditId: string, userId: string, role: UserRole, organizationId?: string) {
@@ -69,6 +79,14 @@ export class GetAuditsService {
     if (role === UserRole.CLIENT) {
       if (audit.organizationId && audit.organizationId !== organizationId && audit.submittedById !== userId) {
         throw new ForbiddenException('Access denied: You do not have permission to view this audit engagement');
+      }
+
+      // Clients only see findings once auditor has approved and sent them for fixes (CORRECTIONS_REQUESTED or COMPLETED)
+      if (
+        audit.stage !== AuditStage.CORRECTIONS_REQUESTED &&
+        audit.stage !== AuditStage.COMPLETED
+      ) {
+        audit.findings = [];
       }
     }
 

@@ -80,7 +80,22 @@ export class FindingsService {
     });
   }
 
-  async findFindingsByAudit(auditId: string) {
+  async findFindingsByAudit(auditId: string, userRole?: UserRole) {
+    if (userRole === UserRole.CLIENT) {
+      const audit = await this.prisma.auditRequest.findUnique({
+        where: { id: auditId },
+        select: { stage: true },
+      });
+      // Clients only see findings once auditor approves and flags for corrections / fixes
+      if (
+        audit &&
+        audit.stage !== AuditStage.CORRECTIONS_REQUESTED &&
+        audit.stage !== AuditStage.COMPLETED
+      ) {
+        return [];
+      }
+    }
+
     return this.prisma.finding.findMany({
       where: { auditId },
       include: {

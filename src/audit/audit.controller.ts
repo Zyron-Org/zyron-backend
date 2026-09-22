@@ -80,8 +80,11 @@ export class AuditController {
 
   @Get(':id/findings')
   @ApiOperation({ summary: 'List all findings for an audit engagement' })
-  async findFindingsByAudit(@Param('id') auditId: string) {
-    return this.auditService.findFindingsByAudit(auditId);
+  async findFindingsByAudit(
+    @Param('id') auditId: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.auditService.findFindingsByAudit(auditId, user.role);
   }
 }
 
