@@ -90,7 +90,7 @@ describe('ScannerService & TokenScannerService (Unit Tests)', () => {
       }),
       processGithubBotMention: vi.fn().mockImplementation(() => {
         mockGithubService.postCommentToIssue('auraprotocol', 'aura-contracts', 42, 'Zyron AI Security Bot findings report');
-        return Promise.resolve({ processed: true });
+        return Promise.resolve({ triggered: true, processed: true });
       }),
     };
 

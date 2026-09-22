@@ -6,6 +6,7 @@ import { LoginService } from '../src/auth/services/login.service';
 import { SiweService } from '../src/auth/services/siwe.service';
 import { UserProfileService } from '../src/auth/services/user-profile.service';
 import { PasswordResetService } from '../src/auth/services/password-reset.service';
+import { EmailVerificationService } from '../src/auth/services/email-verification.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../src/database/database.module';
 import { JwtService } from '@nestjs/jwt';
@@ -33,6 +34,13 @@ describe('AuthService (Unit Tests)', () => {
     organization: { id: 'org_123', name: 'Aura Finance DAO' },
     createdAt: new Date(),
     updatedAt: new Date(),
+    emailVerified: true,
+  };
+
+  const mockEmailVerificationService = {
+    createVerificationToken: vi.fn().mockResolvedValue('mock_token'),
+    verifyEmail: vi.fn().mockResolvedValue({ success: true, message: 'Email verified' }),
+    resendVerification: vi.fn().mockResolvedValue({ success: true, message: 'Verification email resent' }),
   };
 
   beforeEach(async () => {
@@ -45,6 +53,12 @@ describe('AuthService (Unit Tests)', () => {
         create: vi.fn().mockResolvedValue({ id: 'org_123', name: 'Aura Finance DAO' }),
       },
       passwordResetToken: {
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        updateMany: vi.fn(),
+      },
+      emailVerificationToken: {
         findUnique: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
@@ -69,6 +83,7 @@ describe('AuthService (Unit Tests)', () => {
         SiweService,
         UserProfileService,
         PasswordResetService,
+        { provide: EmailVerificationService, useValue: mockEmailVerificationService },
         { provide: PrismaService, useValue: mockPrisma },
         { provide: JwtService, useValue: mockJwtService },
         { provide: EventEmitter2, useValue: mockEventEmitter },
@@ -92,7 +107,7 @@ describe('AuthService (Unit Tests)', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    it('should hash password with bcrypt and return user with JWT token', async () => {
+    it('should hash password with bcrypt and return user with verification requirement', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
       mockPrisma.user.create.mockResolvedValue(mockUser);
       (bcrypt.hash as any).mockResolvedValue('hashed_password_string');
@@ -105,7 +120,7 @@ describe('AuthService (Unit Tests)', () => {
       });
 
       expect(bcrypt.hash).toHaveBeenCalledWith('Password123!', 12);
-      expect(result).toHaveProperty('accessToken', 'mocked_jwt_access_token');
+      expect(result).toHaveProperty('requiresEmailVerification', true);
       expect(result.user.email).toBe('security@auraprotocol.io');
     });
   });
