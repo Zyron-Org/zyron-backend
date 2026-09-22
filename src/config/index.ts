@@ -25,3 +25,7 @@ export const SMTP_PASS = process.env.SMTP_PASS || '';
 export const SMTP_FROM = process.env.SMTP_FROM || 'noreply@zyron.security';
 export const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 
+export const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || '';
+export const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
+export const GITHUB_CALLBACK_URL = process.env.GITHUB_CALLBACK_URL || 'http://localhost:4000/api/v1/auth/github/callback';
+export const GITHUB_FRONTEND_REDIRECT = process.env.GITHUB_FRONTEND_REDIRECT || 'http://localhost:3000/auth/github/callback';

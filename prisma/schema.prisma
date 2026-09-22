@@ -12,7 +12,7 @@ datasource db {
 model User {
   id              String        @id @default(cuid())
   email           String        @unique
-  passwordHash    String?       // null for wallet-only users
+  passwordHash    String?       // null for wallet-only or GitHub-only users
   walletAddress   String?       @unique
   name            String
   role            String        @default("CLIENT") // CLIENT, AUDITOR, ADMIN
@@ -26,6 +26,13 @@ model User {
   emailVerifiedAt DateTime?
   organizationId  String?
   organization    Organization? @relation(fields: [organizationId], references: [id])
+
+  // GitHub OAuth
+  githubId          String?   @unique  // GitHub numeric user ID
+  githubLogin       String?             // GitHub username e.g. "vasakee"
+  githubAccessToken String?             // OAuth token for private repo access (store encrypted in prod)
+  githubAvatarUrl   String?             // GitHub avatar URL
+
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 

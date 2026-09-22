@@ -10,6 +10,7 @@ import {
   UserProfileService,
   PasswordResetService,
   EmailVerificationService,
+  GithubOAuthService,
 } from './services';
 
 @Module({
@@ -28,6 +29,7 @@ import {
     UserProfileService,
     PasswordResetService,
     EmailVerificationService,
+    GithubOAuthService,
   ],
   exports: [
     AuthService,
@@ -37,6 +39,7 @@ import {
     UserProfileService,
     PasswordResetService,
     EmailVerificationService,
+    GithubOAuthService,
     JwtModule,
   ],
 })
