@@ -45,8 +45,25 @@ export class CreateAuditService {
         organization: true,
         findings: true,
         leadAuditor: true,
+        rounds: true,
       },
     });
+
+    // Auto-create Round 1 (Initial Intake & AST Scan)
+    try {
+      await this.prisma.auditRound.create({
+        data: {
+          roundNumber: 1,
+          commitSha: audit.gitCommit || 'latest',
+          status: 'active',
+          summary: 'Initial intake and automated AST security scan',
+          auditId: audit.id,
+          startedAt: audit.submittedAt || new Date(),
+        },
+      });
+    } catch (err: any) {
+      console.warn(`Round 1 creation for ${audit.id} failed:`, err.message);
+    }
 
     // Auto-assign to available auditor
     try {

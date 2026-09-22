@@ -47,21 +47,54 @@ export class AdvanceStageService {
       stageNumber,
     };
 
+    if (dto.gitCommit) {
+      data.gitCommit = dto.gitCommit;
+    }
+
     if (dto.stage === AuditStage.CORRECTIONS_REQUESTED) {
+      // Mark any currently active rounds as completed
+      await this.prisma.auditRound.updateMany({
+        where: { auditId, status: 'active' },
+        data: { status: 'completed', completedAt: new Date() },
+      });
+
       // Create or increment AuditRound for remediation pass
       const roundCount = await this.prisma.auditRound.count({ where: { auditId } });
       await this.prisma.auditRound.create({
         data: {
-          roundNumber: roundCount + 1,
-          commitSha: audit.gitCommit || 'latest',
+          roundNumber: Math.max(roundCount + 1, 2),
+          commitSha: dto.gitCommit || audit.gitCommit || 'latest',
           status: 'active',
           summary: 'Auditor flagged findings for client remediation',
           auditId,
+          startedAt: new Date(),
         },
       });
     }
 
+    if (dto.stage === AuditStage.IN_REVIEW && dto.gitCommit) {
+      // Client submitted fixes for re-review: update latest active round commit
+      const latestRound = await this.prisma.auditRound.findFirst({
+        where: { auditId },
+        orderBy: { roundNumber: 'desc' },
+      });
+      if (latestRound && latestRound.status === 'active') {
+        await this.prisma.auditRound.update({
+          where: { id: latestRound.id },
+          data: {
+            commitSha: dto.gitCommit,
+            summary: `Client submitted remediation commit ${dto.gitCommit.slice(0, 7)} for re-verification`,
+          },
+        });
+      }
+    }
+
     if (dto.stage === AuditStage.COMPLETED) {
+      await this.prisma.auditRound.updateMany({
+        where: { auditId, status: 'active' },
+        data: { status: 'completed', completedAt: new Date() },
+      });
+
       data.completedAt = new Date();
 
       let bytecodeHash: string | null = null;
@@ -100,7 +133,11 @@ export class AdvanceStageService {
     const updated = await this.prisma.auditRequest.update({
       where: { id: auditId },
       data,
-      include: { findings: true, leadAuditor: true },
+      include: {
+        findings: true,
+        leadAuditor: true,
+        rounds: { orderBy: { roundNumber: 'asc' } },
+      },
     });
 
     return this.sanitizer.sanitizeAuditResult(updated);

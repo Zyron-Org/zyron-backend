@@ -63,6 +63,11 @@ export class AdvanceStageDto {
   @ApiProperty({ enum: AuditStage, example: AuditStage.IN_REVIEW, description: 'Target pipeline stage' })
   @IsEnum(AuditStage, { message: 'Invalid audit stage' })
   stage: AuditStage;
+
+  @ApiPropertyOptional({ example: '8f9b2d4', description: 'Remediation git commit SHA' })
+  @IsOptional()
+  @IsString()
+  gitCommit?: string;
 }
 
 export class CreateFindingDto {

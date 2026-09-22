@@ -33,6 +33,7 @@ export class GetAuditsService {
         peerAuditor: true,
         findings: true,
         payment: true,
+        rounds: { orderBy: { roundNumber: 'asc' } },
       },
       orderBy: { createdAt: 'desc' },
     });

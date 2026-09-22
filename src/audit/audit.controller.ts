@@ -61,7 +61,7 @@ export class AuditController {
   @Roles(UserRole.CLIENT, UserRole.ADMIN, UserRole.AUDITOR)
   @ApiOperation({ summary: 'Client submits fix commit SHA and requests Round 2 re-verification' })
   async submitFixes(@Param('id') id: string, @Body() body: { gitCommit?: string }) {
-    return this.auditService.advanceStage(id, { stage: AuditStage.IN_REVIEW });
+    return this.auditService.advanceStage(id, { stage: AuditStage.IN_REVIEW, gitCommit: body.gitCommit });
   }
 
   @Patch(':id/stage')
