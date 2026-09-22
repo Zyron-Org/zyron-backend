@@ -26,7 +26,11 @@ export class AdvanceStageService {
 
     if (dto.stage === AuditStage.COMPLETED) {
       const openCriticalOrHigh = audit.findings.some(
-        (f) => (f.severity === FindingSeverity.CRITICAL || f.severity === FindingSeverity.HIGH) && f.status !== FindingStatus.RESOLVED
+        (f) =>
+          (f.severity === FindingSeverity.CRITICAL || f.severity === FindingSeverity.HIGH) &&
+          f.status !== FindingStatus.RESOLVED &&
+          f.status !== FindingStatus.WONT_FIX &&
+          !f.falsePositive
       );
 
       if (openCriticalOrHigh) {

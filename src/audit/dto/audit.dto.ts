@@ -140,12 +140,45 @@ export class UpdateFindingDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  location?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   remediatedCode?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   remediationNote?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  falsePositive?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  fpJustification?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  isMitigated?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  mitigationJustification?: string;
 }
 
 export class CreateCommentDto {

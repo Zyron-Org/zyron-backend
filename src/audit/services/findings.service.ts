@@ -70,8 +70,15 @@ export class FindingsService {
       data.status = dto.status;
     }
 
-    if (dto.remediatedCode) data.remediatedCode = dto.remediatedCode;
-    if (dto.remediationNote) data.remediationNote = dto.remediationNote;
+    if (dto.title !== undefined) data.title = dto.title;
+    if (dto.location !== undefined) data.location = dto.location;
+    if (dto.description !== undefined) data.description = dto.description;
+    if (dto.remediatedCode !== undefined) data.remediatedCode = dto.remediatedCode;
+    if (dto.remediationNote !== undefined) data.remediationNote = dto.remediationNote;
+    if (dto.falsePositive !== undefined) data.falsePositive = dto.falsePositive;
+    if (dto.fpJustification !== undefined) data.fpJustification = dto.fpJustification;
+    if (dto.isMitigated !== undefined) data.isMitigated = dto.isMitigated;
+    if (dto.mitigationJustification !== undefined) data.mitigationJustification = dto.mitigationJustification;
 
     return this.prisma.finding.update({
       where: { id: findingId },
