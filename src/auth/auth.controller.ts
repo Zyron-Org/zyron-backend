@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Body, UseGuards, Param, Query, HttpCode, HttpStatus, Redirect, Res } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, UseGuards, Param, Query, HttpCode, HttpStatus, Redirect, Res, HttpException } from '@nestjs/common';
 import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -109,12 +109,12 @@ export class AuthController {
   @Get('github/repos')
   @ApiBearerAuth()
   @ApiOperation({ summary: "List authenticated user's GitHub repos (including private)" })
-  @ApiQuery({ name: 'type', enum: ['all', 'public', 'private', 'forks'], required: false })
+  @ApiQuery({ name: 'visibility', enum: ['all', 'public', 'private'], required: false })
   @ApiQuery({ name: 'per_page', type: Number, required: false })
   @ApiQuery({ name: 'page', type: Number, required: false })
   async listGithubRepos(
     @CurrentUser() user: any,
-    @Query('type') type = 'all',
+    @Query('visibility') visibility?: 'all' | 'public' | 'private',
     @Query('per_page') perPage = 50,
     @Query('page') page = 1,
   ) {
@@ -122,25 +122,46 @@ export class AuthController {
       return { repos: [], message: 'Connect your GitHub account via GitHub login to access private repositories.' };
     }
 
-    const res = await axios.get('https://api.github.com/user/repos', {
-      headers: { Authorization: `Bearer ${user.githubAccessToken}`, 'User-Agent': 'Zyron-Security-Platform' },
-      params: { type, sort: 'updated', per_page: perPage, page, affiliation: 'owner,collaborator,organization_member' },
-    });
+    try {
+      const params: Record<string, any> = {
+        sort: 'updated',
+        per_page: perPage,
+        page,
+        affiliation: 'owner,collaborator,organization_member',
+      };
+      if (visibility && visibility !== 'all') {
+        params.visibility = visibility;
+      }
 
-    return {
-      repos: res.data.map((r: any) => ({
-        id: r.id,
-        fullName: r.full_name,
-        name: r.name,
-        private: r.private,
-        defaultBranch: r.default_branch,
-        htmlUrl: r.html_url,
-        language: r.language,
-        description: r.description,
-        updatedAt: r.updated_at,
-        owner: { login: r.owner.login, avatarUrl: r.owner.avatar_url, type: r.owner.type },
-      })),
-    };
+      const res = await axios.get('https://api.github.com/user/repos', {
+        headers: { Authorization: `Bearer ${user.githubAccessToken}`, 'User-Agent': 'Zyron-Security-Platform' },
+        params,
+      });
+
+      return {
+        repos: res.data.map((r: any) => ({
+          id: r.id,
+          fullName: r.full_name,
+          name: r.name,
+          private: r.private,
+          defaultBranch: r.default_branch,
+          htmlUrl: r.html_url,
+          language: r.language,
+          description: r.description,
+          updatedAt: r.updated_at,
+          owner: { login: r.owner.login, avatarUrl: r.owner.avatar_url, type: r.owner.type },
+        })),
+      };
+    } catch (err: any) {
+      const status = err.response?.status;
+      if (status === 401) {
+        return { repos: [], message: 'GitHub token expired or revoked. Please reconnect GitHub.' };
+      }
+      throw new HttpException(
+        err.response?.data?.message || 'Failed to fetch GitHub repositories',
+        status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   @UseGuards(JwtAuthGuard)
