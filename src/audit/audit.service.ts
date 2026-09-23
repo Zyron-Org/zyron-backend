@@ -35,6 +35,10 @@ export class AuditService {
     return this.getAuditsService.findAllAudits(userId, role, organizationId, stageFilter);
   }
 
+  getOverviewStats() {
+    return this.getAuditsService.getOverviewStats();
+  }
+
   findOneAudit(auditId: string, userId: string, role: UserRole, organizationId?: string) {
     return this.getAuditsService.findOneAudit(auditId, userId, role, organizationId);
   }

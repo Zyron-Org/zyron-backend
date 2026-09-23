@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@ne
 import { AuditService } from './audit.service';
 import { CreateAuditDto, AdvanceStageDto, CreateFindingDto, UpdateFindingDto, CreateCommentDto } from './dto/audit.dto';
 import { JwtAuthGuard, RolesGuard } from '../common/guards';
-import { CurrentUser, CurrentUserPayload, Roles } from '../common/decorators';
+import { CurrentUser, CurrentUserPayload, Roles, Public } from '../common/decorators';
 import { AuditStage, UserRole } from '../common/enum';
 
 @ApiTags('Audit Engagements')
@@ -28,6 +28,13 @@ export class AuditController {
     @Query('stage') stage?: AuditStage,
   ) {
     return this.auditService.findAllAudits(user.id, user.role, user.organizationId, stage);
+  }
+
+  @Get('stats/overview')
+  @Public()
+  @ApiOperation({ summary: 'Get aggregate platform statistics and recent audit telemetry' })
+  async getOverviewStats() {
+    return this.auditService.getOverviewStats();
   }
 
   @Get(':id')

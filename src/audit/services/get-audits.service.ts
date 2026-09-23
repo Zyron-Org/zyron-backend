@@ -101,4 +101,73 @@ export class GetAuditsService {
 
     return this.sanitizer.sanitizeAuditResult(audit);
   }
+
+  async getOverviewStats() {
+    const [totalAudits, inProgressAudits, completedAudits, findings, slocAgg, recentAudits] = await Promise.all([
+      this.prisma.auditRequest.count(),
+      this.prisma.auditRequest.count({
+        where: {
+          stage: {
+            in: [
+              AuditStage.PENDING,
+              AuditStage.SCANNING,
+              AuditStage.IN_REVIEW,
+              AuditStage.CORRECTIONS_REQUESTED,
+            ],
+          },
+        },
+      }),
+      this.prisma.auditRequest.count({
+        where: { stage: AuditStage.COMPLETED },
+      }),
+      this.prisma.finding.findMany({
+        select: { severity: true, status: true },
+      }),
+      this.prisma.auditRequest.aggregate({
+        _sum: { sloc: true },
+      }),
+      this.prisma.auditRequest.findMany({
+        take: 6,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          protocolName: true,
+          contractFileName: true,
+          stage: true,
+          sloc: true,
+          network: true,
+          createdAt: true,
+          findings: {
+            select: { id: true, severity: true, status: true },
+          },
+        },
+      }),
+    ]);
+
+    const totalFindings = findings.length;
+    const openFindings = findings.filter(
+      (f) => f.status === 'OPEN' || f.status === 'FIX_SUBMITTED',
+    );
+    const openRisks = openFindings.length;
+    const criticalRisks = openFindings.filter((f) => f.severity === 'CRITICAL').length;
+    const highRisks = openFindings.filter((f) => f.severity === 'HIGH').length;
+    const mediumRisks = openFindings.filter((f) => f.severity === 'MEDIUM').length;
+    const lowRisks = openFindings.filter((f) => f.severity === 'LOW').length;
+    const resolvedFindings = findings.filter((f) => f.status === 'RESOLVED').length;
+
+    return {
+      totalAudits,
+      inProgressAudits,
+      completedAudits,
+      totalFindings,
+      openRisks,
+      criticalRisks,
+      highRisks,
+      mediumRisks,
+      lowRisks,
+      resolvedFindings,
+      totalSloc: slocAgg._sum.sloc || 0,
+      recentAudits,
+    };
+  }
 }
