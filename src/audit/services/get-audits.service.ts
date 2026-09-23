@@ -31,7 +31,15 @@ export class GetAuditsService {
         submittedBy: true,
         leadAuditor: true,
         peerAuditor: true,
-        findings: true,
+        findings: {
+          include: {
+            comments: {
+              include: { sender: true },
+              orderBy: { createdAt: 'asc' },
+            },
+          },
+          orderBy: { severity: 'asc' },
+        },
         payment: true,
         rounds: { orderBy: { roundNumber: 'asc' } },
       },
