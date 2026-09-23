@@ -173,12 +173,13 @@ export class GithubOAuthService {
   }
 
   /** Build the frontend redirect URL after successful OAuth */
-  buildSuccessRedirect(token: string, user: any): string {
+  buildSuccessRedirect(token: string, user: any, redirectDest?: string): string {
     const params = new URLSearchParams({
       token,
       role: user.role,
       name: user.name,
       ...(user.githubLogin && { github: user.githubLogin }),
+      ...(redirectDest && { redirect: redirectDest }),
     });
     return `${GITHUB_FRONTEND_REDIRECT}?${params.toString()}`;
   }

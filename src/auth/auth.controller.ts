@@ -77,15 +77,20 @@ export class AuthController {
   @Public()
   @Get('github')
   @ApiOperation({ summary: 'Redirect user to GitHub OAuth authorization page' })
-  async githubLogin(@Res() res: Response) {
-    const url = this.githubOAuthService.getAuthorizationUrl();
+  async githubLogin(@Res() res: Response, @Query('redirect') redirect?: string) {
+    const url = this.githubOAuthService.getAuthorizationUrl(redirect);
     return res.redirect(url);
   }
 
   @Public()
   @Get('github/callback')
   @ApiOperation({ summary: 'GitHub OAuth callback — exchange code for user session JWT' })
-  async githubCallback(@Query('code') code: string, @Query('error') error: string, @Res() res: Response) {
+  async githubCallback(
+    @Query('code') code: string,
+    @Query('state') state: string,
+    @Query('error') error: string,
+    @Res() res: Response,
+  ) {
     if (error || !code) {
       return res.redirect(this.githubOAuthService.buildErrorRedirect(error || 'No authorization code received from GitHub'));
     }
@@ -94,7 +99,7 @@ export class AuthController {
       const accessToken = await this.githubOAuthService.exchangeCodeForToken(code);
       const user = await this.githubOAuthService.findOrCreateGithubUser(accessToken);
       const jwt = this.githubOAuthService.issueJwt(user);
-      return res.redirect(this.githubOAuthService.buildSuccessRedirect(jwt, user));
+      return res.redirect(this.githubOAuthService.buildSuccessRedirect(jwt, user, state));
     } catch (e: any) {
       return res.redirect(this.githubOAuthService.buildErrorRedirect(e.message || 'GitHub authentication failed'));
     }
@@ -119,7 +124,7 @@ export class AuthController {
 
     const res = await axios.get('https://api.github.com/user/repos', {
       headers: { Authorization: `Bearer ${user.githubAccessToken}`, 'User-Agent': 'Zyron-Security-Platform' },
-      params: { type, sort: 'updated', per_page: perPage, page },
+      params: { type, sort: 'updated', per_page: perPage, page, affiliation: 'owner,collaborator,organization_member' },
     });
 
     return {
@@ -131,8 +136,9 @@ export class AuthController {
         defaultBranch: r.default_branch,
         htmlUrl: r.html_url,
         language: r.language,
+        description: r.description,
         updatedAt: r.updated_at,
-        owner: { login: r.owner.login, avatarUrl: r.owner.avatar_url },
+        owner: { login: r.owner.login, avatarUrl: r.owner.avatar_url, type: r.owner.type },
       })),
     };
   }

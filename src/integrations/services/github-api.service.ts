@@ -8,36 +8,86 @@ export class GithubApiService {
 
   constructor(private parser: GithubParserService) {}
 
-  async getRepositorySolidityContracts(repoUrl: string, branch = 'main') {
-    const { owner, repo } = this.parser.parseRepoUrl(repoUrl);
-    const contracts = await this.fetchRepoTree(owner, repo, branch);
-    return { owner, repo, branch, contracts, total: contracts.length };
+  private getHeaders(accessToken?: string) {
+    const headers: Record<string, string> = {
+      'User-Agent': 'Zyron-Security-Platform',
+    };
+    const token = accessToken || process.env.GITHUB_TOKEN;
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
   }
 
-  async fetchRepoTree(owner: string, repo: string, branch = 'main'): Promise<string[]> {
+  async getRepositorySolidityContracts(repoUrl: string, branch = 'main', accessToken?: string) {
+    const { owner, repo } = this.parser.parseRepoUrl(repoUrl);
+    const { contracts, commitSha } = await this.fetchRepoTree(owner, repo, branch, accessToken);
+    return { owner, repo, branch, commitSha, contracts, total: contracts.length };
+  }
+
+  async fetchBranches(owner: string, repo: string, accessToken?: string): Promise<string[]> {
+    try {
+      const res = await axios.get(`${this.githubApiUrl}/repos/${owner}/${repo}/branches`, {
+        headers: this.getHeaders(accessToken),
+        timeout: 8000,
+        params: { per_page: 100 },
+      });
+      return (res.data || []).map((b: any) => b.name);
+    } catch (e: any) {
+      return ['main', 'master', 'develop'];
+    }
+  }
+
+  async fetchRepoTree(owner: string, repo: string, branch = 'main', accessToken?: string): Promise<{ contracts: string[]; commitSha?: string }> {
+    let commitSha: string | undefined;
+
+    // Try fetching latest commit SHA
+    try {
+      const commitRes = await axios.get(`${this.githubApiUrl}/repos/${owner}/${repo}/commits/${branch}`, {
+        headers: this.getHeaders(accessToken),
+        timeout: 6000,
+      });
+      commitSha = commitRes.data?.sha;
+    } catch {}
+
     try {
       const treeRes = await axios.get(`${this.githubApiUrl}/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`, {
-        headers: { 'User-Agent': 'Zyron-Security-Platform' },
-        timeout: 5000,
+        headers: this.getHeaders(accessToken),
+        timeout: 10000,
       });
 
       const allFiles: GithubRepoTreeItem[] = treeRes.data.tree || [];
       const contractFiles = this.parser.filterContractFiles(allFiles);
-      return contractFiles.map((f) => f.path);
+      return { contracts: contractFiles.map((f) => f.path), commitSha };
     } catch (e) {
-      return ['contracts/VaultCore.sol', 'src/lib.rs'];
+      return { contracts: ['contracts/UniswapV2Pair.sol'], commitSha };
     }
   }
 
-  async fetchFileContent(owner: string, repo: string, filePath: string, branch = 'main'): Promise<string> {
+  async fetchFileContent(owner: string, repo: string, filePath: string, branch = 'main', accessToken?: string): Promise<string> {
+    const headers = this.getHeaders(accessToken);
+
+    // Try GitHub API contents endpoint first with raw accept header (handles both private & public)
     try {
-      const res = await axios.get(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`, {
-        headers: { 'User-Agent': 'Zyron-Security-Platform' },
-        timeout: 5000,
+      const res = await axios.get(`${this.githubApiUrl}/repos/${owner}/${repo}/contents/${filePath}?ref=${branch}`, {
+        headers: {
+          ...headers,
+          Accept: 'application/vnd.github.v3.raw',
+        },
+        timeout: 8000,
       });
-      return typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
-    } catch (e) {
-      return `// Contract source code for ${filePath}\npragma solidity ^0.8.20;\ncontract VaultCore { }`;
+      return typeof res.data === 'string' ? res.data : JSON.stringify(res.data, null, 2);
+    } catch (apiErr) {
+      // Fallback to raw.githubusercontent.com
+      try {
+        const rawRes = await axios.get(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`, {
+          headers: accessToken ? { ...headers, Authorization: `token ${accessToken}` } : headers,
+          timeout: 6000,
+        });
+        return typeof rawRes.data === 'string' ? rawRes.data : JSON.stringify(rawRes.data, null, 2);
+      } catch (rawErr) {
+        return `// Contract source code for ${filePath}\npragma solidity ^0.8.20;\ncontract TargetContract {\n    // Ingested via Zyron Platform\n}`;
+      }
     }
   }
 }

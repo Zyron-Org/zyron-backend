@@ -20,6 +20,22 @@ export class JwtAuthGuard implements CanActivate {
     ]);
 
     if (isPublic) {
+      const request = context.switchToHttp().getRequest();
+      const authHeader = request.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        try {
+          const token = authHeader.split(' ')[1];
+          const payload: any = this.jwtService.decode(token);
+          if (payload && (payload.sub || payload.email)) {
+            const user = await this.prisma.user.findUnique({
+              where: { id: payload.sub || undefined, email: payload.email || undefined },
+            });
+            if (user) {
+              request.user = user;
+            }
+          }
+        } catch {}
+      }
       return true;
     }
 
