@@ -112,8 +112,10 @@ model AuditRequest {
   stageNumber      Int        @default(1)
 
   // Source
+  sourceCode       String? // Ingested or uploaded raw Solidity contract source code
   sourceCodeUrl    String? // S3 key for uploaded .sol
   githubRepoUrl    String?
+
   githubBranch     String?
   sourceHash       String?   // SHA-256 of all source files concatenated
   compilerSettings String?   // JSON: { version, optimizer, runs }

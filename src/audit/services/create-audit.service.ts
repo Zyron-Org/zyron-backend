@@ -36,6 +36,7 @@ export class CreateAuditService {
         invariants: dto.invariants ? JSON.stringify(dto.invariants) : null,
         githubRepoUrl: dto.githubRepoUrl,
         githubBranch: dto.githubBranch,
+        sourceCode: dto.sourceCode,
         submittedById: userId,
         organizationId,
         estimatedCompletion,
