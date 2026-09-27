@@ -10,7 +10,6 @@
       margin: 0;
       padding: 0;
       background-color: #08090C;
-      color: #0F172A;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       -webkit-font-smoothing: antialiased;
       -webkit-text-size-adjust: 100%;
@@ -21,149 +20,40 @@
     a {
       text-decoration: none;
     }
-    .email-wrapper {
-      width: 100%;
-      background-color: #08090C;
-      padding: 44px 16px;
-    }
-    .card-container {
-      max-width: 580px;
-      margin: 0 auto;
-      background-color: #FFFFFF;
-      border: 1px solid #E2E8F0;
-      border-radius: 18px;
-      overflow: hidden;
-      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
-    }
-    .card-header {
-      padding: 22px 32px;
-      background-color: #FFFFFF;
-      border-bottom: 1px solid #F1F5F9;
-    }
-    .brand-title {
-      font-size: 16px;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      color: #0F172A;
-    }
-    .brand-accent {
-      color: #0284C7;
-    }
-    .status-badge {
-      display: inline-block;
-      padding: 4px 12px;
-      background-color: #F0FDF4;
-      border: 1px solid #BBF7D0;
-      border-radius: 9999px;
-      color: #15803D;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    }
-    .status-dot {
-      display: inline-block;
-      width: 6px;
-      height: 6px;
-      background-color: #22C55E;
-      border-radius: 50%;
-      margin-right: 5px;
-      vertical-align: middle;
-    }
-    .card-content {
-      padding: 34px 32px 28px;
-      background-color: #FFFFFF;
-    }
-    h1 {
-      margin: 0 0 12px 0;
-      font-size: 22px;
-      color: #0F172A;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      line-height: 1.3;
-    }
-    p {
-      margin: 0 0 16px 0;
-      font-size: 14px;
-      line-height: 1.65;
-      color: #475569;
-    }
-    .btn-container {
-      margin: 28px 0;
-      text-align: center;
-    }
-    .btn-expanding {
-      display: inline-table;
-      background-color: #0B0D10;
-      color: #FFFFFF !important;
-      text-decoration: none;
-      border-radius: 12px;
-      border: 1px solid #1E293B;
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
-    }
-    .sub-card {
-      background-color: #F8FAFC;
-      border: 1px solid #E2E8F0;
-      border-radius: 12px;
-      padding: 16px 18px;
-      margin: 20px 0;
-    }
-    .card-footer {
-      padding: 22px 32px;
-      border-top: 1px solid #F1F5F9;
-      background-color: #F8FAFC;
-      font-size: 11px;
-      color: #94A3B8;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      text-align: center;
-      line-height: 1.6;
-    }
-    .outer-footer {
-      max-width: 580px;
-      margin: 16px auto 0;
-      text-align: center;
-      font-size: 10px;
-      color: #475569;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      letter-spacing: 0.04em;
-    }
   </style>
 </head>
-<body>
-  <div class="email-wrapper">
-    <div class="card-container">
-      <div class="card-header">
-        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+<body style="margin: 0; padding: 0; background-color: #08090C;">
+  <!-- Outer Void Canvas -->
+  <div style="width: 100%; background-color: #08090C; padding: 40px 16px; box-sizing: border-box;">
+    <!-- Dashboard Card Shell (Darker Outer Background) -->
+    <div style="max-width: 580px; margin: 0 auto; background-color: #14171C; border: 1px solid #262B33; border-radius: 18px; padding: 8px; box-shadow: 0 20px 45px rgba(0, 0, 0, 0.55);">
+      
+      <!-- Inner Floating Card (Lighter White Background) -->
+      <div style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 28px 28px 26px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
+        {{> content}}
+      </div>
+
+      <!-- Bottom Section (Directly on Darker Card Shell Background) -->
+      <div style="padding: 14px 18px 10px; color: #8B93A1; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.07); padding-bottom: 10px;">
           <tr>
-            <td align="left" valign="middle">
-              <table cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td style="vertical-align:middle;">
-                    <div style="width:30px; height:30px; background-color:#0B0D10; border-radius:8px; text-align:center; line-height:30px; color:#5EC8FF; font-family:ui-monospace, monospace; font-weight:bold; font-size:14px; border:1px solid #262B33;">&gt;_</div>
-                  </td>
-                  <td style="vertical-align:middle; padding-left:10px;">
-                    <span class="brand-title">ZYRON<span class="brand-accent">.</span></span>
-                    <span style="font-size:11px; color:#94A3B8; font-weight:600; margin-left:6px; letter-spacing:0.04em;">AI AUDITOR</span>
-                  </td>
-                </tr>
-              </table>
+            <td align="left" style="color: #8B93A1; font-size: 11px; font-family: ui-monospace, monospace;">
+              <span style="color: #5EC8FF;">&#9201;</span> Verified Dispatch
+              <span style="color: #384351; margin: 0 8px;">|</span>
+              <span style="color: #3DDC97;">&#10003;</span> Encrypted Attestation
             </td>
-            <td align="right" valign="middle">
-              <span class="status-badge"><span class="status-dot"></span>ZYRON // PROTOCOL SECURITY</span>
+            <td align="right" style="color: #5EC8FF; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; font-family: ui-monospace, monospace;">
+              ZYR // PROTOCOL
             </td>
           </tr>
         </table>
+
+        <div style="text-align: center; color: #64748B; font-size: 11px; line-height: 1.6;">
+          <div>ZYRON SECURITY PROTOCOL &bull; AUTONOMOUS SMART CONTRACT AUDIT</div>
+          <div style="margin-top: 4px; font-size: 10px; color: #475569;">&copy; {{currentYear}} Zyron Protocol Labs. All rights reserved.</div>
+        </div>
       </div>
-      <div class="card-content">
-        {{> content}}
-      </div>
-      <div class="card-footer">
-        <div>ZYRON SECURITY PROTOCOL &bull; AUTONOMOUS SMART CONTRACT AUDIT</div>
-        <div style="margin-top: 6px;">&copy; {{currentYear}} Zyron Protocol Labs. All rights reserved.</div>
-      </div>
-    </div>
-    <div class="outer-footer">
-      Automated Cryptographic Security Notification &bull; Do Not Reply Direct
+
     </div>
   </div>
 </body>
