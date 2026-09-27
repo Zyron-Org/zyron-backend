@@ -4,6 +4,7 @@ import { PrismaService } from '../../database/database.module';
 import { RegisterDto } from '../dto/auth.dto';
 import { UserRole } from '../../common/enum';
 import { EmailVerificationService } from './email-verification.service';
+import { APP_URL } from '../../config';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -53,7 +54,7 @@ export class RegisterService {
     });
 
     // Generate single-use verification token & dispatch verification email
-    await this.emailVerificationService.createVerificationToken({
+    const token = await this.emailVerificationService.createVerificationToken({
       id: user.id,
       email: user.email,
       name: user.name,
@@ -65,6 +66,9 @@ export class RegisterService {
       user: safeUser,
       message: 'Registration successful. Please check your email to verify your account before logging in.',
       requiresEmailVerification: true,
+      ...(process.env.NODE_ENV === 'development'
+        ? { verificationUrl: `${APP_URL}/auth/verify-email?token=${token}`, devMode: true }
+        : {}),
     };
   }
 

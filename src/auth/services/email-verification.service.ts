@@ -93,11 +93,13 @@ export class EmailVerificationService {
     };
   }
 
-  async resendVerification(email: string): Promise<{ message: string }> {
+  async resendVerification(email: string): Promise<{ message: string; verificationUrl?: string; devMode?: boolean }> {
     const normalizedEmail = email.toLowerCase().trim();
     const user = await this.prisma.user.findUnique({
       where: { email: normalizedEmail },
     });
+
+    let verificationUrl: string | undefined;
 
     if (user) {
       if (user.emailVerified) {
@@ -106,17 +108,22 @@ export class EmailVerificationService {
         };
       }
 
-      await this.createVerificationToken({
+      const token = await this.createVerificationToken({
         id: user.id,
         email: user.email,
         name: user.name,
       });
+
+      if (process.env.NODE_ENV === 'development') {
+        verificationUrl = `${APP_URL}/auth/verify-email?token=${token}`;
+      }
     } else {
       this.logger.debug(`Verification resend requested for non-existent email: ${normalizedEmail}`);
     }
 
     return {
       message: 'If an account exists with this email address and is pending verification, a new verification link has been dispatched.',
+      ...(verificationUrl ? { verificationUrl, devMode: true } : {}),
     };
   }
 }
