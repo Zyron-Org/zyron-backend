@@ -3,74 +3,96 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Welcome to Zyron</title>
   <style>
     body {
       margin: 0;
       padding: 0;
-      background-color: #07090e;
-      color: #e2e8f0;
+      background-color: #08090C;
+      color: #E2E8F0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       -webkit-font-smoothing: antialiased;
+      -webkit-text-size-adjust: 100%;
+    }
+    table {
+      border-collapse: separate;
     }
     .wrapper {
       width: 100%;
-      background-color: #07090e;
-      padding: 40px 0;
+      background-color: #08090C;
+      padding: 40px 16px;
     }
-    .container {
+    .outer-container {
       max-width: 580px;
       margin: 0 auto;
-      background-color: #0d1117;
+      background-color: #0E1218;
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 8px;
+      border-radius: 16px;
       overflow: hidden;
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
     }
     .header {
       padding: 24px 32px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      background: linear-gradient(180deg, rgba(16, 24, 39, 0.8) 0%, rgba(13, 17, 23, 0.8) 100%);
+      background: linear-gradient(180deg, #131822 0%, #0E1218 100%);
+    }
+    .brand-title {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #FFFFFF;
+      text-decoration: none;
+    }
+    .brand-accent {
+      color: #5EC8FF;
     }
     .logo-badge {
       display: inline-block;
-      padding: 4px 10px;
-      background-color: rgba(0, 229, 191, 0.1);
-      border: 1px solid rgba(0, 229, 191, 0.3);
-      border-radius: 4px;
-      color: #00e5bf;
-      font-size: 13px;
+      padding: 4px 12px;
+      background-color: rgba(94, 200, 255, 0.1);
+      border: 1px solid rgba(94, 200, 255, 0.25);
+      border-radius: 9999px;
+      color: #5EC8FF;
+      font-size: 11px;
       font-weight: 700;
-      letter-spacing: 1.5px;
-      font-family: monospace;
+      letter-spacing: 0.08em;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
     .content {
-      padding: 36px 32px;
+      padding: 32px;
     }
     h1 {
-      margin: 0 0 16px 0;
-      font-size: 20px;
-      color: #ffffff;
-      font-weight: 600;
-      letter-spacing: -0.5px;
+      margin: 0 0 14px 0;
+      font-size: 22px;
+      color: #FFFFFF;
+      font-weight: 700;
+      letter-spacing: -0.02em;
     }
     p {
       margin: 0 0 16px 0;
       font-size: 14px;
       line-height: 1.6;
-      color: #94a3b8;
+      color: #94A3B8;
     }
     .accent {
-      color: #00e5bf;
+      color: #5EC8FF;
       font-weight: 600;
     }
-    .info-card {
-      background-color: #090d13;
+    .inner-card {
+      background-color: #121720;
       border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 6px;
-      padding: 16px;
-      margin: 20px 0;
-      font-family: monospace;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 22px 0;
+    }
+    .info-card {
+      background-color: #090C11;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin: 18px 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 12px;
     }
     .info-row {
@@ -81,47 +103,82 @@
       margin-bottom: 0;
     }
     .info-label {
-      color: #64748b;
-      width: 140px;
+      color: #64748B;
+      width: 130px;
     }
     .info-val {
-      color: #cbd5e1;
+      color: #E2E8F0;
+      font-weight: 600;
+    }
+    .btn-container {
+      margin: 28px 0 12px 0;
+      text-align: center;
     }
     .btn {
       display: inline-block;
-      padding: 12px 28px;
-      background-color: #00e5bf;
-      color: #07090e !important;
+      padding: 13px 32px;
+      background-color: #5EC8FF;
+      color: #07090E !important;
       text-decoration: none;
       font-weight: 700;
-      font-size: 13px;
-      letter-spacing: 0.5px;
-      border-radius: 4px;
-      margin-top: 12px;
-      text-transform: uppercase;
-      font-family: monospace;
+      font-size: 14px;
+      letter-spacing: 0.02em;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(94, 200, 255, 0.35);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .feature-grid {
+      margin: 20px 0 8px 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 18px;
+    }
+    .feature-item {
+      font-size: 12px;
+      color: #8492A6;
+      line-height: 1.5;
+      margin-bottom: 8px;
+      padding-left: 18px;
+      position: relative;
+    }
+    .feature-item::before {
+      content: "•";
+      color: #5EC8FF;
+      font-size: 16px;
+      position: absolute;
+      left: 4px;
+      top: -2px;
     }
     .footer {
       padding: 24px 32px;
       border-top: 1px solid rgba(255, 255, 255, 0.06);
-      background-color: #090d13;
+      background-color: #090B0F;
       text-align: center;
       font-size: 11px;
-      color: #64748b;
-      font-family: monospace;
+      color: #64748B;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      line-height: 1.6;
     }
   </style>
 </head>
 <body>
   <div class="wrapper">
-    <div class="container">
+    <div class="outer-container">
       <div class="header">
-        <span class="logo-badge">ZYRON // PROTOCOL SECURITY</span>
+        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+          <tr>
+            <td align="left" valign="middle">
+              <span class="brand-title">ZYRON<span class="brand-accent">.</span></span>
+            </td>
+            <td align="right" valign="middle">
+              <span class="logo-badge">ZYRON // PROTOCOL SECURITY</span>
+            </td>
+          </tr>
+        </table>
       </div>
       <div class="content">
         <h1>Welcome to Zyron, <span class="accent">{{userName}}</span></h1>
-        <p>Your security engagement workspace is ready. You now have full access to automated AST taint scanning, auditor workbenches, and cryptographic on-chain attestations.</p>
-        
+        <p>Your security engagement workspace is active. You now have access to enterprise-grade automated AST taint scanning, auditor triage workbenches, and verifiable on-chain cryptographic attestations.</p>
+
         {{#if orgName}}
         <div class="info-card">
           <div class="info-row">
@@ -130,24 +187,34 @@
           </div>
           <div class="info-row">
             <span class="info-label">// STATUS:</span>
-            <span class="info-val" style="color: #00e5bf;">ACTIVE_ENGAGEMENT</span>
+            <span class="info-val" style="color: #5EC8FF;">ACTIVE_ENGAGEMENT</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">// WORKSPACE:</span>
+            <span class="info-val" style="color: #94A3B8;">AUDIT_PIPELINE_V2</span>
           </div>
         </div>
         {{/if}}
 
-        <p>You can now submit smart contract audit scopes, monitor real-time vulnerability scan passes, and collaborate with lead auditors.</p>
+        <p>You can now submit smart contract audit scopes, monitor real-time vulnerability scan passes, and collaborate directly with certified EVM auditors.</p>
 
-        <div style="text-align: center; margin: 28px 0;">
+        <div class="btn-container">
           <a href="{{loginUrl}}" class="btn">Launch Portal &rarr;</a>
         </div>
 
-        <p style="font-size: 12px; color: #64748b; margin-bottom: 0;">
+        <div class="feature-grid">
+          <div class="feature-item"><strong>Automated AST Analysis:</strong> Instant Slither and Mythril passes on every commit.</div>
+          <div class="feature-item"><strong>Lead Auditor Triage:</strong> Double-blind manual verification of protocol invariants.</div>
+          <div class="feature-item"><strong>Cryptographic Vault:</strong> Sealed PDF reports and immutable SHA-256 bytecode attestations.</div>
+        </div>
+
+        <p style="font-size: 11px; color: #64748B; margin-top: 20px; margin-bottom: 0;">
           If you did not create this account, please contact our security team immediately at security@zyron.labs.
         </p>
       </div>
       <div class="footer">
         <div>ZYRON SECURITY PROTOCOL &bull; AUTONOMOUS SMART CONTRACT AUDIT</div>
-        <div style="margin-top: 8px;">&copy; {{currentYear}} Zyron Protocol Labs. All rights reserved.</div>
+        <div style="margin-top: 6px;">&copy; {{currentYear}} Zyron Protocol Labs. All rights reserved.</div>
       </div>
     </div>
   </div>

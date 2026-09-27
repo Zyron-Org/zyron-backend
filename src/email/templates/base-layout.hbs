@@ -3,84 +3,110 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>{{subject}}</title>
   <style>
     body {
       margin: 0;
       padding: 0;
-      background-color: #07090e;
-      color: #e2e8f0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, monospace;
+      background-color: #08090C;
+      color: #E2E8F0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       -webkit-font-smoothing: antialiased;
+      -webkit-text-size-adjust: 100%;
+    }
+    table {
+      border-collapse: separate;
     }
     .wrapper {
       width: 100%;
-      background-color: #07090e;
-      padding: 40px 0;
+      background-color: #08090C;
+      padding: 40px 16px;
     }
-    .container {
+    .outer-container {
       max-width: 580px;
       margin: 0 auto;
-      background-color: #0d1117;
+      background-color: #0E1218;
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 8px;
+      border-radius: 16px;
       overflow: hidden;
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
     }
     .header {
       padding: 24px 32px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      background: linear-gradient(180deg, rgba(16, 24, 39, 0.8) 0%, rgba(13, 17, 23, 0.8) 100%);
+      background: linear-gradient(180deg, #131822 0%, #0E1218 100%);
+    }
+    .logo-container {
       display: flex;
       align-items: center;
+      justify-content: space-between;
+    }
+    .brand-title {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #FFFFFF;
+      text-decoration: none;
+    }
+    .brand-accent {
+      color: #5EC8FF;
     }
     .logo-badge {
       display: inline-block;
-      padding: 4px 10px;
-      background-color: rgba(0, 229, 191, 0.1);
-      border: 1px solid rgba(0, 229, 191, 0.3);
-      border-radius: 4px;
-      color: #00e5bf;
-      font-size: 13px;
+      padding: 4px 12px;
+      background-color: rgba(94, 200, 255, 0.1);
+      border: 1px solid rgba(94, 200, 255, 0.25);
+      border-radius: 9999px;
+      color: #5EC8FF;
+      font-size: 11px;
       font-weight: 700;
-      letter-spacing: 1.5px;
-      font-family: monospace;
+      letter-spacing: 0.08em;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
     .content {
       padding: 32px;
     }
+    .inner-card {
+      background-color: #121720;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
     .footer {
-      padding: 20px 32px;
+      padding: 24px 32px;
       border-top: 1px solid rgba(255, 255, 255, 0.06);
-      background-color: #090d13;
+      background-color: #090B0F;
       text-align: center;
       font-size: 11px;
-      color: #64748b;
-      font-family: monospace;
+      color: #64748B;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      line-height: 1.6;
     }
     .btn {
       display: inline-block;
-      padding: 12px 24px;
-      background-color: #00e5bf;
-      color: #07090e !important;
+      padding: 13px 30px;
+      background-color: #5EC8FF;
+      color: #0B0D10 !important;
       text-decoration: none;
-      font-weight: 600;
+      font-weight: 700;
       font-size: 13px;
-      letter-spacing: 0.5px;
-      border-radius: 4px;
-      margin-top: 20px;
-      margin-bottom: 10px;
-      text-transform: uppercase;
-      font-family: monospace;
+      letter-spacing: 0.02em;
+      border-radius: 10px;
+      margin-top: 16px;
+      margin-bottom: 8px;
+      box-shadow: 0 0 20px rgba(94, 200, 255, 0.3);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     .code-box {
-      background-color: #05070a;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 4px;
+      background-color: #090C11;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 8px;
       padding: 12px 16px;
-      font-family: monospace;
-      font-size: 13px;
-      color: #00e5bf;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: #5EC8FF;
       word-break: break-all;
       margin: 16px 0;
     }
@@ -88,16 +114,25 @@
 </head>
 <body>
   <div class="wrapper">
-    <div class="container">
+    <div class="outer-container">
       <div class="header">
-        <span class="logo-badge">ZYRON // PROTOCOL SECURITY</span>
+        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+          <tr>
+            <td align="left" valign="middle">
+              <span class="brand-title">ZYRON<span class="brand-accent">.</span></span>
+            </td>
+            <td align="right" valign="middle">
+              <span class="logo-badge">ZYRON // PROTOCOL SECURITY</span>
+            </td>
+          </tr>
+        </table>
       </div>
       <div class="content">
         {{> content}}
       </div>
       <div class="footer">
         <div>ZYRON SECURITY PROTOCOL &bull; AUTONOMOUS SMART CONTRACT AUDIT</div>
-        <div style="margin-top: 8px;">&copy; {{currentYear}} Zyron Protocol Labs. All rights reserved.</div>
+        <div style="margin-top: 6px;">&copy; {{currentYear}} Zyron Protocol Labs. All rights reserved.</div>
       </div>
     </div>
   </div>
