@@ -10,7 +10,7 @@
       margin: 0;
       padding: 0;
       background-color: #08090C;
-      color: #E2E8F0;
+      color: #0F172A;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       -webkit-font-smoothing: antialiased;
       -webkit-text-size-adjust: 100%;
@@ -18,122 +18,152 @@
     table {
       border-collapse: separate;
     }
-    .wrapper {
+    a {
+      text-decoration: none;
+    }
+    .email-wrapper {
       width: 100%;
       background-color: #08090C;
-      padding: 40px 16px;
+      padding: 44px 16px;
     }
-    .outer-container {
+    .card-container {
       max-width: 580px;
       margin: 0 auto;
-      background-color: #0E1218;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 16px;
+      background-color: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 18px;
       overflow: hidden;
-      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
     }
-    .header {
-      padding: 24px 32px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      background: linear-gradient(180deg, #131822 0%, #0E1218 100%);
-    }
-    .logo-container {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    .card-header {
+      padding: 22px 32px;
+      background-color: #FFFFFF;
+      border-bottom: 1px solid #F1F5F9;
     }
     .brand-title {
       font-size: 16px;
       font-weight: 800;
       letter-spacing: -0.02em;
-      color: #FFFFFF;
-      text-decoration: none;
+      color: #0F172A;
     }
     .brand-accent {
-      color: #5EC8FF;
+      color: #0284C7;
     }
-    .logo-badge {
+    .status-badge {
       display: inline-block;
       padding: 4px 12px;
-      background-color: rgba(94, 200, 255, 0.1);
-      border: 1px solid rgba(94, 200, 255, 0.25);
+      background-color: #F0FDF4;
+      border: 1px solid #BBF7D0;
       border-radius: 9999px;
-      color: #5EC8FF;
-      font-size: 11px;
+      color: #15803D;
+      font-size: 10px;
       font-weight: 700;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.06em;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
-    .content {
-      padding: 32px;
+    .status-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background-color: #22C55E;
+      border-radius: 50%;
+      margin-right: 5px;
+      vertical-align: middle;
     }
-    .inner-card {
-      background-color: #121720;
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 24px;
+    .card-content {
+      padding: 34px 32px 28px;
+      background-color: #FFFFFF;
     }
-    .footer {
-      padding: 24px 32px;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
-      background-color: #090B0F;
+    h1 {
+      margin: 0 0 12px 0;
+      font-size: 22px;
+      color: #0F172A;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.3;
+    }
+    p {
+      margin: 0 0 16px 0;
+      font-size: 14px;
+      line-height: 1.65;
+      color: #475569;
+    }
+    .btn-container {
+      margin: 28px 0;
       text-align: center;
+    }
+    .btn-expanding {
+      display: inline-table;
+      background-color: #0B0D10;
+      color: #FFFFFF !important;
+      text-decoration: none;
+      border-radius: 12px;
+      border: 1px solid #1E293B;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+    }
+    .sub-card {
+      background-color: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin: 20px 0;
+    }
+    .card-footer {
+      padding: 22px 32px;
+      border-top: 1px solid #F1F5F9;
+      background-color: #F8FAFC;
       font-size: 11px;
-      color: #64748B;
+      color: #94A3B8;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      text-align: center;
       line-height: 1.6;
     }
-    .btn {
-      display: inline-block;
-      padding: 13px 30px;
-      background-color: #5EC8FF;
-      color: #0B0D10 !important;
-      text-decoration: none;
-      font-weight: 700;
-      font-size: 13px;
-      letter-spacing: 0.02em;
-      border-radius: 10px;
-      margin-top: 16px;
-      margin-bottom: 8px;
-      box-shadow: 0 0 20px rgba(94, 200, 255, 0.3);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-    .code-box {
-      background-color: #090C11;
-      border: 1px solid rgba(255, 255, 255, 0.07);
-      border-radius: 8px;
-      padding: 12px 16px;
+    .outer-footer {
+      max-width: 580px;
+      margin: 16px auto 0;
+      text-align: center;
+      font-size: 10px;
+      color: #475569;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 12px;
-      color: #5EC8FF;
-      word-break: break-all;
-      margin: 16px 0;
+      letter-spacing: 0.04em;
     }
   </style>
 </head>
 <body>
-  <div class="wrapper">
-    <div class="outer-container">
-      <div class="header">
+  <div class="email-wrapper">
+    <div class="card-container">
+      <div class="card-header">
         <table width="100%" border="0" cellspacing="0" cellpadding="0">
           <tr>
             <td align="left" valign="middle">
-              <span class="brand-title">ZYRON<span class="brand-accent">.</span></span>
+              <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <div style="width:30px; height:30px; background-color:#0B0D10; border-radius:8px; text-align:center; line-height:30px; color:#5EC8FF; font-family:ui-monospace, monospace; font-weight:bold; font-size:14px; border:1px solid #262B33;">&gt;_</div>
+                  </td>
+                  <td style="vertical-align:middle; padding-left:10px;">
+                    <span class="brand-title">ZYRON<span class="brand-accent">.</span></span>
+                    <span style="font-size:11px; color:#94A3B8; font-weight:600; margin-left:6px; letter-spacing:0.04em;">AI AUDITOR</span>
+                  </td>
+                </tr>
+              </table>
             </td>
             <td align="right" valign="middle">
-              <span class="logo-badge">ZYRON // PROTOCOL SECURITY</span>
+              <span class="status-badge"><span class="status-dot"></span>ZYRON // PROTOCOL SECURITY</span>
             </td>
           </tr>
         </table>
       </div>
-      <div class="content">
+      <div class="card-content">
         {{> content}}
       </div>
-      <div class="footer">
+      <div class="card-footer">
         <div>ZYRON SECURITY PROTOCOL &bull; AUTONOMOUS SMART CONTRACT AUDIT</div>
         <div style="margin-top: 6px;">&copy; {{currentYear}} Zyron Protocol Labs. All rights reserved.</div>
       </div>
+    </div>
+    <div class="outer-footer">
+      Automated Cryptographic Security Notification &bull; Do Not Reply Direct
     </div>
   </div>
 </body>
