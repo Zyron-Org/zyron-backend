@@ -34,6 +34,7 @@ export class CreateAuditService {
         stage: AuditStage.PENDING,
         stageNumber: 1,
         invariants: dto.invariants ? JSON.stringify(dto.invariants) : null,
+        businessGoals: dto.businessGoals,
         githubRepoUrl: dto.githubRepoUrl,
         githubBranch: dto.githubBranch,
         sourceCode: dto.sourceCode,

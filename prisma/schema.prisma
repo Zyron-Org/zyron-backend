@@ -123,6 +123,7 @@ model AuditRequest {
 
   // Invariant selections
   invariants String? // JSON string { reentrancy: true, oracle: true }
+  businessGoals String? // Platform business objectives, economic flows, and intent for AI and reviewer context
 
   // Timing
   submittedAt         DateTime  @default(now())

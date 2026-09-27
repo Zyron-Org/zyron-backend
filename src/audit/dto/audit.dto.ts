@@ -48,6 +48,11 @@ export class CreateAuditDto {
   @IsObject()
   invariants?: Record<string, boolean>;
 
+  @ApiPropertyOptional({ example: 'Decentralized AMM for constant-product liquidity provision...', description: 'Business goals and economic flow context' })
+  @IsOptional()
+  @IsString()
+  businessGoals?: string;
+
   @ApiPropertyOptional({ example: 'aura-finance/core-vaults', description: 'GitHub repository full name' })
   @IsOptional()
   @IsString()

@@ -4,103 +4,71 @@ const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding initial database test accounts...');
+  console.log('Seeding fresh database with requested user accounts...');
 
   const saltRounds = 12;
+  const passwordHash = await bcrypt.hash('password123', saltRounds);
 
-  // Create Aura Protocol organization
-  let auraOrg = await prisma.organization.findFirst({
-    where: { name: 'Aura Protocol' },
-  });
-
-  if (!auraOrg) {
-    auraOrg = await prisma.organization.create({
-      data: {
-        name: 'Aura Protocol',
-        tier: 'enterprise',
-        billingEmail: 'billing@auraprotocol.io',
-      },
-    });
-    console.log('Created organization: Aura Protocol');
-  }
-
-  // 1. Auditor Account
-  const auditorPassHash = await bcrypt.hash('AuditorPass123!', saltRounds);
-  await prisma.user.upsert({
-    where: { email: 'k4@zyron.labs' },
-    update: {
-      passwordHash: auditorPassHash,
-      role: 'AUDITOR',
-      auditorHandle: '0xAuditor_K4',
-      emailVerified: true,
-      onboardingStatus: 'ACTIVE',
+  // 1. Create Default Client Organization
+  const clientOrg = await prisma.organization.create({
+    data: {
+      name: 'Zyron Client Org',
+      tier: 'enterprise',
+      billingEmail: 'billing@zyron.labs',
     },
-    create: {
-      email: 'k4@zyron.labs',
-      passwordHash: auditorPassHash,
-      name: 'K4 Auditor',
+  });
+  console.log('Created Organization:', clientOrg.name);
+
+  // 2. Admin Account: admin@zyron.labs
+  const admin = await prisma.user.create({
+    data: {
+      email: 'admin@zyron.labs',
+      passwordHash: passwordHash,
+      name: 'Zyron Admin',
+      role: 'ADMIN',
+      auditorHandle: '0xAdmin_Root',
+      emailVerified: true,
+      emailVerifiedAt: new Date(),
+      onboardingStatus: 'ACTIVE',
+      isAvailable: true,
+    },
+  });
+  console.log('Created Admin:', admin.email);
+
+  // 3. Auditor Account: auditor@zyron.labs
+  const auditor = await prisma.user.create({
+    data: {
+      email: 'auditor@zyron.labs',
+      passwordHash: passwordHash,
+      name: 'Zyron Auditor',
       role: 'AUDITOR',
       auditorHandle: '0xAuditor_K4',
       specialization: 'EVM & DeFi Protocols',
+      emailVerified: true,
+      emailVerifiedAt: new Date(),
+      onboardingStatus: 'ACTIVE',
       isAvailable: true,
-      emailVerified: true,
-      emailVerifiedAt: new Date(),
-      onboardingStatus: 'ACTIVE',
     },
   });
-  console.log('Upserted Auditor: k4@zyron.labs');
+  console.log('Created Auditor:', auditor.email);
 
-  // 2. Admin Account
-  const adminPassHash = await bcrypt.hash('AdminPass123!', saltRounds);
-  await prisma.user.upsert({
-    where: { email: 'admin@zyron.labs' },
-    update: {
-      passwordHash: adminPassHash,
-      role: 'ADMIN',
-      auditorHandle: '0xAdmin_Root',
-      emailVerified: true,
-      onboardingStatus: 'ACTIVE',
-    },
-    create: {
-      email: 'admin@zyron.labs',
-      passwordHash: adminPassHash,
-      name: 'Zyron System Admin',
-      role: 'ADMIN',
-      auditorHandle: '0xAdmin_Root',
-      emailVerified: true,
-      emailVerifiedAt: new Date(),
-      onboardingStatus: 'ACTIVE',
-    },
-  });
-  console.log('Upserted Admin: admin@zyron.labs');
-
-  // 3. Client Account
-  const clientPassHash = await bcrypt.hash('SecurePassword123!', saltRounds);
-  await prisma.user.upsert({
-    where: { email: 'security@auraprotocol.io' },
-    update: {
-      passwordHash: clientPassHash,
+  // 4. Client Account: client@zyron.labs
+  const client = await prisma.user.create({
+    data: {
+      email: 'client@zyron.labs',
+      passwordHash: passwordHash,
+      name: 'Zyron Client',
       role: 'CLIENT',
-      auditorHandle: 'AuraSecurity',
-      organizationId: auraOrg.id,
-      emailVerified: true,
-      onboardingStatus: 'ACTIVE',
-    },
-    create: {
-      email: 'security@auraprotocol.io',
-      passwordHash: clientPassHash,
-      name: 'Aura Security Lead',
-      role: 'CLIENT',
-      auditorHandle: 'AuraSecurity',
-      organizationId: auraOrg.id,
+      organizationId: clientOrg.id,
       emailVerified: true,
       emailVerifiedAt: new Date(),
       onboardingStatus: 'ACTIVE',
+      isAvailable: true,
     },
   });
-  console.log('Upserted Client: security@auraprotocol.io');
+  console.log('Created Client:', client.email);
 
-  console.log('Database seeding finished successfully!');
+  console.log('Database reset & seed complete! Only the 3 requested accounts exist with password: password123');
 }
 
 main()
