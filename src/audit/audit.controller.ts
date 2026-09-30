@@ -72,6 +72,7 @@ export class AuditController {
   }
 
   @Patch(':id/stage')
+  @Patch(':id/advance-stage')
   @Roles(UserRole.AUDITOR, UserRole.ADMIN)
   @ApiOperation({ summary: 'Advance audit lifecycle stage (Auditor / Admin only)' })
   async advanceStage(@Param('id') id: string, @Body() dto: AdvanceStageDto) {
