@@ -72,10 +72,16 @@ export class AuditController {
   }
 
   @Patch(':id/stage')
-  @Patch(':id/advance-stage')
   @Roles(UserRole.AUDITOR, UserRole.ADMIN)
   @ApiOperation({ summary: 'Advance audit lifecycle stage (Auditor / Admin only)' })
   async advanceStage(@Param('id') id: string, @Body() dto: AdvanceStageDto) {
+    return this.auditService.advanceStage(id, dto);
+  }
+
+  @Patch(':id/advance-stage')
+  @Roles(UserRole.AUDITOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Advance audit lifecycle stage alias (Auditor / Admin only)' })
+  async advanceStageAlias(@Param('id') id: string, @Body() dto: AdvanceStageDto) {
     return this.auditService.advanceStage(id, dto);
   }
 
