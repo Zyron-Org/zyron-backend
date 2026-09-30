@@ -4,5 +4,5 @@
     "ignoreDeprecations": "6.0",
     "rootDir": "src"
   },
-  "exclude": ["node_modules", "dist", "test", "**/*spec.ts", "prisma", "vitest.config*.ts"]
+  "exclude": ["node_modules", "dist", "test", "**/*spec.ts", "prisma", "*.db*", "**/*.db*", "*.tsbuildinfo", "**/*.tsbuildinfo", "vitest.config*.ts"]
 }
