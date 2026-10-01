@@ -17,7 +17,7 @@ export class GithubOAuthService {
   ) {}
 
   /** Step 1 — Build the GitHub authorization URL to redirect the user to */
-  getAuthorizationUrl(state?: string): string {
+  getAuthorizationUrl(state?: string, prompt?: string): string {
     if (!GITHUB_CLIENT_ID) {
       throw new UnauthorizedException('GitHub OAuth is not configured on this server. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.');
     }
@@ -28,6 +28,7 @@ export class GithubOAuthService {
       // repo + read:org gives access to private repos AND organization repos
       scope: 'user:email read:user repo read:org',
       ...(state && { state }),
+      ...(prompt && { prompt }),
     });
 
     return `https://github.com/login/oauth/authorize?${params.toString()}`;

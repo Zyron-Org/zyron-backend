@@ -7,6 +7,7 @@ import { JwtAuthGuard, RolesGuard } from '../common/guards';
 import { CurrentUser, CurrentUserPayload, Roles, Public } from '../common/decorators';
 import { UserRole } from '../common/enum';
 import { GithubOAuthService } from './services';
+import { GITHUB_CLIENT_ID } from '../config';
 import axios from 'axios';
 
 @ApiTags('Authentication')
@@ -77,8 +78,12 @@ export class AuthController {
   @Public()
   @Get('github')
   @ApiOperation({ summary: 'Redirect user to GitHub OAuth authorization page' })
-  async githubLogin(@Res() res: Response, @Query('redirect') redirect?: string) {
-    const url = this.githubOAuthService.getAuthorizationUrl(redirect);
+  async githubLogin(
+    @Res() res: Response,
+    @Query('redirect') redirect?: string,
+    @Query('prompt') prompt?: string,
+  ) {
+    const url = this.githubOAuthService.getAuthorizationUrl(redirect, prompt);
     return res.redirect(url);
   }
 
@@ -239,6 +244,7 @@ export class AuthController {
         params: { per_page: 100 },
       });
 
+      const clientId = GITHUB_CLIENT_ID || process.env.GITHUB_CLIENT_ID || '';
       return {
         orgs: orgsRes.data.map((org: any) => ({
           id: org.id,
@@ -246,6 +252,8 @@ export class AuthController {
           avatarUrl: org.avatar_url,
           description: org.description || '',
         })),
+        clientId,
+        manageAccessUrl: `https://github.com/settings/connections/applications/${clientId}`,
       };
     } catch (err: any) {
       const status = err.response?.status;
