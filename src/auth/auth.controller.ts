@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Body, UseGuards, Param, Query, HttpCode, HttpStatus, Redirect, Res, HttpException } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Body, UseGuards, Param, Query, HttpCode, HttpStatus, Redirect, Res, HttpException } from '@nestjs/common';
 import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -108,14 +108,16 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('github/repos')
   @ApiBearerAuth()
-  @ApiOperation({ summary: "List authenticated user's GitHub repos (including private)" })
+  @ApiOperation({ summary: "List authenticated user's GitHub repos (supports org filter and private repos)" })
+  @ApiQuery({ name: 'org', type: String, required: false, description: 'Optional GitHub organization login to scope repositories' })
   @ApiQuery({ name: 'visibility', enum: ['all', 'public', 'private'], required: false })
   @ApiQuery({ name: 'per_page', type: Number, required: false })
   @ApiQuery({ name: 'page', type: Number, required: false })
   async listGithubRepos(
     @CurrentUser() user: any,
+    @Query('org') org?: string,
     @Query('visibility') visibility?: 'all' | 'public' | 'private',
-    @Query('per_page') perPage = 50,
+    @Query('per_page') perPage = 100,
     @Query('page') page = 1,
   ) {
     if (!user.githubAccessToken) {
@@ -123,22 +125,62 @@ export class AuthController {
     }
 
     try {
+      if (org && org !== 'personal') {
+        const params: Record<string, any> = {
+          type: 'all',
+          sort: 'updated',
+          per_page: perPage,
+          page,
+        };
+
+        const res = await axios.get(`https://api.github.com/orgs/${org}/repos`, {
+          headers: {
+            Authorization: `Bearer ${user.githubAccessToken}`,
+            'User-Agent': 'Zyron-Security-Platform',
+            Accept: 'application/vnd.github.v3+json',
+          },
+          params,
+        });
+
+        return {
+          org,
+          repos: res.data.map((r: any) => ({
+            id: r.id,
+            fullName: r.full_name,
+            name: r.name,
+            private: r.private,
+            defaultBranch: r.default_branch,
+            htmlUrl: r.html_url,
+            language: r.language,
+            description: r.description,
+            updatedAt: r.updated_at,
+            owner: { login: r.owner.login, avatarUrl: r.owner.avatar_url, type: r.owner.type },
+          })),
+        };
+      }
+
+      // Default: User's personal / collaborator repositories
       const params: Record<string, any> = {
         sort: 'updated',
         per_page: perPage,
         page,
-        affiliation: 'owner,collaborator,organization_member',
+        affiliation: 'owner,collaborator',
       };
       if (visibility && visibility !== 'all') {
         params.visibility = visibility;
       }
 
       const res = await axios.get('https://api.github.com/user/repos', {
-        headers: { Authorization: `Bearer ${user.githubAccessToken}`, 'User-Agent': 'Zyron-Security-Platform' },
+        headers: {
+          Authorization: `Bearer ${user.githubAccessToken}`,
+          'User-Agent': 'Zyron-Security-Platform',
+          Accept: 'application/vnd.github.v3+json',
+        },
         params,
       });
 
       return {
+        org: 'personal',
         repos: res.data.map((r: any) => ({
           id: r.id,
           fullName: r.full_name,
@@ -157,6 +199,20 @@ export class AuthController {
       if (status === 401) {
         return { repos: [], message: 'GitHub token expired or revoked. Please reconnect GitHub.' };
       }
+      if (status === 403) {
+        const ssoHeader = err.response?.headers?.['x-github-sso'];
+        return {
+          repos: [],
+          isRestricted: true,
+          org: org || null,
+          message: ssoHeader
+            ? `SAML Single Sign-On authorization required for organization "${org}".`
+            : `Access to organization "${org}" is restricted by third-party application policy. Ask an organization admin to grant access.`,
+          approvalUrl: org
+            ? `https://github.com/orgs/${org}/settings/oauth_application_policy`
+            : 'https://github.com/settings/connections/applications',
+        };
+      }
       throw new HttpException(
         err.response?.data?.message || 'Failed to fetch GitHub repositories',
         status || HttpStatus.INTERNAL_SERVER_ERROR,
@@ -167,46 +223,50 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('github/orgs')
   @ApiBearerAuth()
-  @ApiOperation({ summary: "List authenticated user's GitHub organizations and their repositories" })
+  @ApiOperation({ summary: "List authenticated user's GitHub organizations" })
   async listGithubOrgs(@CurrentUser() user: any) {
     if (!user.githubAccessToken) {
       return { orgs: [], message: 'Connect your GitHub account via GitHub login to access organization repositories.' };
     }
 
-    const orgsRes = await axios.get('https://api.github.com/user/orgs', {
-      headers: { Authorization: `Bearer ${user.githubAccessToken}`, 'User-Agent': 'Zyron-Security-Platform' },
-      params: { per_page: 50 },
-    });
+    try {
+      const orgsRes = await axios.get('https://api.github.com/user/orgs', {
+        headers: {
+          Authorization: `Bearer ${user.githubAccessToken}`,
+          'User-Agent': 'Zyron-Security-Platform',
+          Accept: 'application/vnd.github.v3+json',
+        },
+        params: { per_page: 100 },
+      });
 
-    const orgs = await Promise.all(
-      orgsRes.data.map(async (org: any) => {
-        try {
-          const reposRes = await axios.get(`https://api.github.com/orgs/${org.login}/repos`, {
-            headers: { Authorization: `Bearer ${user.githubAccessToken}`, 'User-Agent': 'Zyron-Security-Platform' },
-            params: { type: 'all', sort: 'updated', per_page: 50 },
-          });
-          return {
-            login: org.login,
-            avatarUrl: org.avatar_url,
-            repos: reposRes.data.map((r: any) => ({
-              id: r.id,
-              fullName: r.full_name,
-              name: r.name,
-              private: r.private,
-              defaultBranch: r.default_branch,
-              htmlUrl: r.html_url,
-              language: r.language,
-              updatedAt: r.updated_at,
-            })),
-          };
-        } catch {
-          return { login: org.login, avatarUrl: org.avatar_url, repos: [] };
-        }
-      }),
-    );
-
-    return { orgs };
+      return {
+        orgs: orgsRes.data.map((org: any) => ({
+          id: org.id,
+          login: org.login,
+          avatarUrl: org.avatar_url,
+          description: org.description || '',
+        })),
+      };
+    } catch (err: any) {
+      const status = err.response?.status;
+      if (status === 401) {
+        return { orgs: [], message: 'GitHub token expired or revoked. Please reconnect GitHub.' };
+      }
+      throw new HttpException(
+        err.response?.data?.message || 'Failed to fetch GitHub organizations',
+        status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('github')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Disconnect linked GitHub account from user profile' })
+  async unlinkGithub(@CurrentUser() user: any) {
+    return this.authService.unlinkGithub(user.id);
+  }
+
 
   @Public()
   @Get('siwe/nonce')

@@ -47,4 +47,26 @@ export class UserProfileService {
     const { passwordHash: _, ...safeUser } = updated;
     return safeUser;
   }
+
+  async unlinkGithub(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        githubId: null,
+        githubLogin: null,
+        githubAccessToken: null,
+        githubAvatarUrl: null,
+      },
+      include: { organization: true },
+    });
+
+    const { passwordHash: _, ...safeUser } = updated;
+    return safeUser;
+  }
 }
+

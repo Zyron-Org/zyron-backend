@@ -64,6 +64,10 @@ export class AuthService {
   resendVerification(email: string) {
     return this.emailVerificationService.resendVerification(email);
   }
+
+  unlinkGithub(userId: string) {
+    return this.userProfileService.unlinkGithub(userId);
+  }
 }
 
 
