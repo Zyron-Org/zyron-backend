@@ -1,10 +1,15 @@
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/database.module';
 import { CreateAuditDto } from '../dto/audit.dto';
 import { AuditStage } from '../../common/enum';
 import { AuditSanitizerService } from './audit-sanitizer.service';
 import { AutoAssignService } from './auto-assign.service';
 import { ScanOrchestratorService } from '../../scanner/services/scan-orchestrator.service';
+import { GithubService } from '../../integrations/github.service';
+import {
+  isBlockchainContractFile,
+  containsBlockchainMarkers,
+} from '../../integrations/services/github-parser.service';
 
 @Injectable()
 export class CreateAuditService {
@@ -14,9 +19,41 @@ export class CreateAuditService {
     private autoAssignService: AutoAssignService,
     @Inject(forwardRef(() => ScanOrchestratorService))
     private scanOrchestrator: ScanOrchestratorService,
+    @Inject(forwardRef(() => GithubService))
+    private githubService: GithubService,
   ) {}
 
   async createAudit(userId: string, organizationId: string | undefined, dto: CreateAuditDto) {
+    // 1. Contract filename and source code validation
+    const hasValidExt = isBlockchainContractFile(dto.contractFileName);
+    const hasContractCode = containsBlockchainMarkers(dto.sourceCode);
+
+    if (!hasValidExt && !hasContractCode) {
+      throw new BadRequestException(
+        `File '${dto.contractFileName}' is not a recognized blockchain smart contract file. Zyron only audits smart contracts (.sol, .vy, .rs, .cairo, .move, .yul, .tact, .func, .circom).`,
+      );
+    }
+
+    // 2. If a GitHub repo URL is specified, inspect it to verify blockchain files exist
+    if (dto.githubRepoUrl) {
+      try {
+        const repoCheck = await this.githubService.getRepositorySolidityContracts(
+          dto.githubRepoUrl,
+          dto.githubBranch || 'main',
+        );
+        if (repoCheck && repoCheck.isInspected && repoCheck.contracts.length === 0) {
+          throw new BadRequestException(
+            `The connected repository (${dto.githubRepoUrl}) does not contain any supported smart contract files (.sol, .vy, .rs, .cairo, .move, .yul, .tact). Zyron cannot audit non-blockchain repositories.`,
+          );
+        }
+      } catch (err: any) {
+        if (err instanceof BadRequestException) {
+          throw err;
+        }
+        // If repo inspection failed due to network / rate limit / private repo, we allow through if contract file/code passed check 1
+      }
+    }
+
     const count = await this.prisma.auditRequest.count();
     const ticketId = `ZYR-${9480 + count + 1}`;
     const estimatedCompletion = new Date(Date.now() + 48 * 60 * 60 * 1000);

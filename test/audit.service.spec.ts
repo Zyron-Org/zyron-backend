@@ -15,6 +15,7 @@ import { BlockchainService } from '../src/blockchain/blockchain.service';
 import { ScanOrchestratorService } from '../src/scanner/services/scan-orchestrator.service';
 
 import { AutoAssignService } from '../src/audit/services/auto-assign.service';
+import { GithubService } from '../src/integrations/github.service';
 
 describe('AuditService (Unit Tests)', () => {
   let auditService: AuditService;
@@ -71,6 +72,16 @@ describe('AuditService (Unit Tests)', () => {
       runScan: vi.fn().mockResolvedValue({ scanJob: { id: 'job_1' }, findingsCount: 0 }),
     };
 
+    const mockGithubService = {
+      getRepositorySolidityContracts: vi.fn().mockResolvedValue({
+        contracts: ['contracts/VaultCore.sol'],
+        total: 1,
+        hasBlockchainFiles: true,
+        isInspected: true,
+      }),
+      parseRepoUrl: vi.fn().mockReturnValue({ owner: 'aura-finance', repo: 'core-vaults' }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuditService,
@@ -85,6 +96,7 @@ describe('AuditService (Unit Tests)', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: BlockchainService, useValue: mockBlockchainService },
         { provide: ScanOrchestratorService, useValue: mockScanOrchestrator },
+        { provide: GithubService, useValue: mockGithubService },
       ],
     }).compile();
 
@@ -92,7 +104,7 @@ describe('AuditService (Unit Tests)', () => {
   });
 
   describe('createAudit()', () => {
-    it('should generate ticket ID ZYR-9481 for first audit', async () => {
+    it('should generate ticket ID ZYR-9481 for first audit with valid smart contract', async () => {
       mockPrisma.auditRequest.count.mockResolvedValue(0);
       mockPrisma.auditRequest.create.mockResolvedValue(mockAudit);
 
@@ -113,6 +125,59 @@ describe('AuditService (Unit Tests)', () => {
         }),
       );
       expect(result.id).toBe('ZYR-9481');
+    });
+
+    it('should reject non-blockchain file when no blockchain markers exist', async () => {
+      await expect(
+        auditService.createAudit('usr_client', 'org_123', {
+          protocolName: 'React Todo App',
+          contractFileName: 'index.tsx',
+          compilerVersion: 'v0.8.20',
+          sloc: 500,
+          sourceCode: 'import React from "react"; export default function App() {}',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject audit if GitHub repository contains zero blockchain contract files', async () => {
+      const moduleRef = await Test.createTestingModule({
+        providers: [
+          AuditService,
+          CreateAuditService,
+          GetAuditsService,
+          ClaimTicketService,
+          AdvanceStageService,
+          FindingsService,
+          CommentsService,
+          AutoAssignService,
+          AuditSanitizerService,
+          { provide: PrismaService, useValue: mockPrisma },
+          { provide: BlockchainService, useValue: mockBlockchainService },
+          { provide: ScanOrchestratorService, useValue: mockScanOrchestrator },
+          {
+            provide: GithubService,
+            useValue: {
+              getRepositorySolidityContracts: vi.fn().mockResolvedValue({
+                contracts: [],
+                total: 0,
+                hasBlockchainFiles: false,
+                isInspected: true,
+              }),
+            },
+          },
+        ],
+      }).compile();
+
+      const service = moduleRef.get<AuditService>(AuditService);
+      await expect(
+        service.createAudit('usr_client', 'org_123', {
+          protocolName: 'Frontend Web App',
+          contractFileName: 'Contract.sol',
+          compilerVersion: 'v0.8.20',
+          sloc: 200,
+          githubRepoUrl: 'https://github.com/someone/react-app',
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

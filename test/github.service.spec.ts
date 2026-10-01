@@ -62,5 +62,20 @@ describe('GithubService (Unit Tests)', () => {
         'src/macro.huff',
       ]);
     });
+
+    it('should return empty array for non-blockchain repositories (e.g. React/Node/Python apps)', () => {
+      const nonBlockchainTree = [
+        { path: 'src/App.tsx', type: 'blob', size: 1200 },
+        { path: 'src/index.js', type: 'blob', size: 500 },
+        { path: 'package.json', type: 'blob', size: 800 },
+        { path: 'server.py', type: 'blob', size: 1400 },
+        { path: 'Dockerfile', type: 'blob', size: 300 },
+        { path: 'README.md', type: 'blob', size: 600 },
+      ];
+
+      const filtered = githubService.filterContractFiles(nonBlockchainTree as any);
+      expect(filtered).toHaveLength(0);
+      expect(filtered).toEqual([]);
+    });
   });
 });

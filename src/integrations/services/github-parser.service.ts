@@ -8,16 +8,54 @@ export interface GithubRepoTreeItem {
   url?: string;
 }
 
+export const BLOCKCHAIN_CONTRACT_EXTENSIONS = [
+  '.sol', // Solidity
+  '.vy', // Vyper
+  '.cairo', // Cairo (Starknet)
+  '.move', // Move (Aptos / Sui)
+  '.rs', // Rust (Solana Anchor, CosmWasm, Near, Polkadot/Substrate)
+  '.yul', // Yul EVM low-level
+  '.tact', // TON Tact
+  '.func', // TON FunC
+  '.fc', // TON FunC
+  '.huff', // Huff EVM low-level
+  '.sw', // Sway (Fuel VM)
+  '.circom', // Circom ZK
+  '.fe', // Fe language
+  '.zok', // ZoKrates
+];
+
+export function isBlockchainContractFile(filenameOrPath?: string): boolean {
+  if (!filenameOrPath) return false;
+  const lower = filenameOrPath.toLowerCase().trim();
+  return BLOCKCHAIN_CONTRACT_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+export function containsBlockchainMarkers(sourceCode?: string): boolean {
+  if (!sourceCode || typeof sourceCode !== 'string') return false;
+  const lower = sourceCode.toLowerCase();
+  return (
+    lower.includes('pragma solidity') ||
+    lower.includes('pragma vyper') ||
+    lower.includes('contract ') ||
+    lower.includes('interface ') ||
+    lower.includes('library ') ||
+    lower.includes('#[program]') ||
+    lower.includes('solana_program') ||
+    lower.includes('anchor_lang') ||
+    lower.includes('cosmwasm_std') ||
+    lower.includes('#[starknet::contract]') ||
+    lower.includes('module ') ||
+    lower.includes('@openzeppelin') ||
+    lower.includes('is initializable') ||
+    lower.includes('is ownable') ||
+    lower.includes('is erc20') ||
+    lower.includes('is erc721')
+  );
+}
+
 @Injectable()
 export class GithubParserService {
-  private primaryContractExtensions = [
-    '.sol', '.rs', '.vy', '.move', '.cairo', '.huff', '.sw', '.tact', '.func', '.circom', '.zok',
-  ];
-
-  private fallbackCodeExtensions = [
-    '.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.java', '.cpp', '.c', '.h', '.hpp', '.json', '.yaml', '.yml', '.toml',
-  ];
-
   private ignoredPaths = [
     'node_modules/', '.next/', 'dist/', 'build/', '.git/', 'out/', 'coverage/', 'vendor/',
     'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock',
@@ -48,18 +86,7 @@ export class GithubParserService {
       return !this.ignoredPaths.some((ignored) => lower.includes(ignored));
     });
 
-    const primaryMatches = validBlobs.filter((item) => {
-      const lower = item.path.toLowerCase();
-      return this.primaryContractExtensions.some((ext) => lower.endsWith(ext));
-    });
-
-    if (primaryMatches.length > 0) {
-      return primaryMatches;
-    }
-
-    return validBlobs.filter((item) => {
-      const lower = item.path.toLowerCase();
-      return this.fallbackCodeExtensions.some((ext) => lower.endsWith(ext));
-    });
+    return validBlobs.filter((item) => isBlockchainContractFile(item.path));
   }
 }
+

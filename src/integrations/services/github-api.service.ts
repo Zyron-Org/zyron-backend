@@ -21,8 +21,24 @@ export class GithubApiService {
 
   async getRepositorySolidityContracts(repoUrl: string, branch = 'main', accessToken?: string) {
     const { owner, repo } = this.parser.parseRepoUrl(repoUrl);
-    const { contracts, commitSha } = await this.fetchRepoTree(owner, repo, branch, accessToken);
-    return { owner, repo, branch, commitSha, contracts, total: contracts.length };
+    const { contracts, commitSha, isInspected, totalFiles } = await this.fetchRepoTree(owner, repo, branch, accessToken);
+    const hasBlockchainFiles = contracts.length > 0;
+    return {
+      owner,
+      repo,
+      branch,
+      commitSha,
+      contracts,
+      total: contracts.length,
+      hasBlockchainFiles,
+      isInspected,
+      totalFiles,
+      message: hasBlockchainFiles
+        ? undefined
+        : isInspected
+        ? 'No blockchain smart contract files (.sol, .vy, .rs, .cairo, .move, .yul, .tact) detected in this repository.'
+        : 'Could not inspect repository files. Please verify repository access permissions.',
+    };
   }
 
   async fetchBranches(owner: string, repo: string, accessToken?: string): Promise<string[]> {
@@ -38,7 +54,12 @@ export class GithubApiService {
     }
   }
 
-  async fetchRepoTree(owner: string, repo: string, branch = 'main', accessToken?: string): Promise<{ contracts: string[]; commitSha?: string }> {
+  async fetchRepoTree(
+    owner: string,
+    repo: string,
+    branch = 'main',
+    accessToken?: string,
+  ): Promise<{ contracts: string[]; commitSha?: string; isInspected: boolean; totalFiles: number }> {
     let commitSha: string | undefined;
 
     // Try fetching latest commit SHA
@@ -58,9 +79,14 @@ export class GithubApiService {
 
       const allFiles: GithubRepoTreeItem[] = treeRes.data.tree || [];
       const contractFiles = this.parser.filterContractFiles(allFiles);
-      return { contracts: contractFiles.map((f) => f.path), commitSha };
+      return {
+        contracts: contractFiles.map((f) => f.path),
+        commitSha,
+        isInspected: true,
+        totalFiles: allFiles.length,
+      };
     } catch (e) {
-      return { contracts: ['contracts/UniswapV2Pair.sol'], commitSha };
+      return { contracts: [], commitSha, isInspected: false, totalFiles: 0 };
     }
   }
 

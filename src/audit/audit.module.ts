@@ -4,6 +4,7 @@ import { AuditService } from './audit.service';
 import { AuthModule } from '../auth/auth.module';
 import { BlockchainModule } from '../blockchain/blockchain.module';
 import { ScannerModule } from '../scanner/scanner.module';
+import { IntegrationsModule } from '../integrations/integrations.module';
 import {
   AuditSanitizerService,
   CreateAuditService,
@@ -16,7 +17,7 @@ import {
 } from './services';
 
 @Module({
-  imports: [AuthModule, BlockchainModule, forwardRef(() => ScannerModule)],
+  imports: [AuthModule, BlockchainModule, forwardRef(() => ScannerModule), forwardRef(() => IntegrationsModule)],
   controllers: [AuditController, FindingController],
   providers: [
     AuditService,
