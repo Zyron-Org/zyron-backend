@@ -7,3 +7,4 @@ export * from './findings.service';
 export * from './comments.service';
 export * from './auto-assign.service';
 export * from './report-generator.service';
+export * from './audit-verification.service';

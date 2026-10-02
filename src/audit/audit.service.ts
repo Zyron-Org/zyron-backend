@@ -12,6 +12,8 @@ import {
   CommentsService,
   AutoAssignService,
   ReportGeneratorService,
+  AuditVerificationService,
+  VerifyAuditInput,
 } from './services';
 
 @Injectable()
@@ -27,7 +29,16 @@ export class AuditService {
     private findingsService: FindingsService,
     private commentsService: CommentsService,
     private autoAssignService: AutoAssignService,
+    private auditVerificationService: AuditVerificationService,
   ) {}
+
+  verifyAudit(input: VerifyAuditInput) {
+    return this.auditVerificationService.verify(input);
+  }
+
+  getRecentVerifications(limit?: number) {
+    return this.auditVerificationService.getRecentVerifications(limit);
+  }
 
   createAudit(userId: string, organizationId: string | undefined, dto: CreateAuditDto) {
     return this.createAuditService.createAudit(userId, organizationId, dto);

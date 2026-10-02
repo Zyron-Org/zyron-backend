@@ -17,6 +17,7 @@ import {
   CommentsService,
   AutoAssignService,
   ReportGeneratorService,
+  AuditVerificationService,
 } from './services';
 
 @Module({
@@ -39,6 +40,7 @@ import {
     CommentsService,
     AutoAssignService,
     ReportGeneratorService,
+    AuditVerificationService,
   ],
   exports: [
     AuditService,
@@ -51,6 +53,7 @@ import {
     CommentsService,
     AutoAssignService,
     ReportGeneratorService,
+    AuditVerificationService,
   ],
 })
 export class AuditModule {}

@@ -1,5 +1,6 @@
-import { Controller, Post, Get, Patch, Delete, Body, Param, Query, UseGuards, Res } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { Controller, Post, Get, Patch, Delete, Body, Param, Query, UseGuards, Res, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiConsumes } from '@nestjs/swagger';
 import { AuditService } from './audit.service';
 import { CreateAuditDto, AdvanceStageDto, CreateFindingDto, UpdateFindingDto, CreateCommentDto } from './dto/audit.dto';
 import { JwtAuthGuard, RolesGuard } from '../common/guards';
@@ -12,6 +13,45 @@ import { AuditStage, UserRole } from '../common/enum';
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
+
+  @Get('verify/recent')
+  @Public()
+  @ApiOperation({ summary: 'Get recently verified smart contract audit attestations' })
+  async getRecentVerifications(@Query('limit') limit?: number) {
+    return this.auditService.getRecentVerifications(limit ? Number(limit) : 6);
+  }
+
+  @Get('verify')
+  @Public()
+  @ApiOperation({ summary: 'Publicly verify an audit by query (Ticket ID, address, hash, or IPFS CID)' })
+  async verifyAuditGet(@Query('query') query?: string, @Query('hash') hash?: string) {
+    return this.auditService.verifyAudit({ query, hash });
+  }
+
+  @Post('verify')
+  @Public()
+  @ApiOperation({ summary: 'Publicly verify an audit by query, hash, or source code' })
+  async verifyAuditPost(@Body() body: { query?: string; hash?: string; code?: string }) {
+    return this.auditService.verifyAudit(body);
+  }
+
+  @Post('verify/upload')
+  @Public()
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Publicly verify authenticity of an uploaded audit report PDF' })
+  async verifyAuditUpload(@UploadedFile() file: any) {
+    if (!file || !file.buffer) {
+      return {
+        verified: false,
+        message: 'No PDF file was provided for verification.',
+      };
+    }
+    return this.auditService.verifyAudit({
+      fileBuffer: file.buffer,
+      fileName: file.originalname,
+    });
+  }
 
   @Post()
   @ApiOperation({ summary: 'Submit new smart contract audit request' })
