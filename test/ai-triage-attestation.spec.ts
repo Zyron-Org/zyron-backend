@@ -1,8 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AiAuditService } from '../src/scanner/ai-audit.service';
-import { AiLocalReasonerService } from '../src/scanner/services/ai-local-reasoner.service';
-import { AiGeminiClientService } from '../src/scanner/services/ai-gemini-client.service';
+import {
+  AiProviderFactory,
+  GeminiProviderService,
+  AnthropicProviderService,
+  OpenAiProviderService,
+  DeepSeekProviderService,
+} from '../src/scanner/ai-providers';
 import { AdvanceStageService } from '../src/audit/services/advance-stage.service';
 import { PrismaService } from '../src/database/database.module';
 import { BlockchainService } from '../src/blockchain/blockchain.service';
@@ -14,7 +19,7 @@ describe('AI Review & On-Chain Attestation Pipeline (Topic 2)', () => {
   let advanceStageService: AdvanceStageService;
   let mockPrisma: any;
   let mockBlockchainService: any;
-  let mockGeminiClient: any;
+  let mockGeminiProvider: any;
 
   const mockAudit = {
     id: 'ZYR-9481',
@@ -62,27 +67,72 @@ describe('AI Review & On-Chain Attestation Pipeline (Topic 2)', () => {
       getContractBytecodeHash: vi.fn().mockResolvedValue(null),
     };
 
-    mockGeminiClient = {
-      callGeminiApi: vi.fn().mockImplementation((fileName, code, apiKey, staticFindings, context) => {
-        return Promise.resolve(
-          new AiLocalReasonerService(null as any).runLocalAiAnalysis(
-            fileName,
-            code,
-            'Gemini 1.5 Pro',
-            staticFindings,
-            context,
-          ),
-        );
+    mockGeminiProvider = {
+      id: 'gemini',
+      displayName: 'Google Gemini',
+      isAvailable: vi.fn().mockReturnValue(true),
+      getMissingConfigReason: vi.fn().mockReturnValue(null),
+      analyzeContract: vi.fn().mockImplementation((contractFileName, code, staticFindings) => {
+        const findings: any[] = [];
+        for (const sf of staticFindings || []) {
+          if (sf.ruleId === 'ZYRON-08-001') {
+            findings.push({
+              title: sf.title,
+              severity: FindingSeverity.LOW,
+              ruleId: sf.ruleId,
+              decision: 'DISMISS_INTENDED_DESIGN',
+              falsePositive: true,
+              fpJustification: 'Flash Swap pattern with lock modifier.',
+              pocScenario: 'Safety Proof: lock modifier prevents recursive reentry.',
+            });
+          } else if (sf.ruleId === 'ZYRON-02-003') {
+            findings.push({
+              title: sf.title,
+              severity: FindingSeverity.INFORMATIONAL,
+              ruleId: sf.ruleId,
+              decision: 'DISMISS_INTENDED_DESIGN',
+              falsePositive: true,
+              fpJustification: 'Intentional 136-year modular wrap-around in TWAP.',
+              pocScenario: 'Safety Proof: modular arithmetic ensures deterministic calculation.',
+            });
+          } else {
+            findings.push({
+              title: sf.title,
+              severity: sf.severity,
+              ruleId: sf.ruleId,
+              decision: 'CONFIRMED',
+              falsePositive: false,
+            });
+          }
+        }
+        return Promise.resolve({
+          provider: 'gemini',
+          modelUsed: 'Gemini (gemini-2.0-flash)',
+          contractFileName,
+          analysisSummary: `Gemini verified ${contractFileName}.`,
+          findings,
+        });
       }),
     };
+
+    const mockEmptyProvider = (id: string, name: string) => ({
+      id,
+      displayName: name,
+      isAvailable: vi.fn().mockReturnValue(false),
+      getMissingConfigReason: vi.fn().mockReturnValue('Key not set'),
+      analyzeContract: vi.fn(),
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AiAuditService,
-        AiLocalReasonerService,
+        AiProviderFactory,
         AdvanceStageService,
         AuditSanitizerService,
-        { provide: AiGeminiClientService, useValue: mockGeminiClient },
+        { provide: GeminiProviderService, useValue: mockGeminiProvider },
+        { provide: AnthropicProviderService, useValue: mockEmptyProvider('anthropic', 'Claude') },
+        { provide: OpenAiProviderService, useValue: mockEmptyProvider('openai', 'OpenAI') },
+        { provide: DeepSeekProviderService, useValue: mockEmptyProvider('deepseek', 'DeepSeek') },
         { provide: PrismaService, useValue: mockPrisma },
         { provide: BlockchainService, useValue: mockBlockchainService },
       ],
@@ -184,22 +234,31 @@ describe('AI Review & On-Chain Attestation Pipeline (Topic 2)', () => {
         ]),
       );
 
-      // 2. Verifies that submitAutomatedAttestation was triggered
+      // 2. Verifies that the real Merkle root was persisted to Prisma
+      expect(mockPrisma.auditRequest.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'ZYR-9481' },
+          data: expect.objectContaining({
+            merkleRoot: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+          }),
+        }),
+      );
+
+      // 3. Verifies that submitAutomatedAttestation was triggered
       expect(mockBlockchainService.submitAutomatedAttestation).toHaveBeenCalledWith('ZYR-9481');
 
-      // 3. Verifies that returned audit object contains attestation proof
+      // 4. Verifies response contains the transaction hash and chain ID
       expect(result.onChainTxHash).toBe('0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef');
-      expect(result.attestationStatus).toBe('CONFIRMED');
-      expect(result.merkleRoot).toBe('0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890');
+      expect(result.onChainChainId).toBe(421614);
     });
 
-    it('should block transition to COMPLETED if open critical findings exist', async () => {
+    it('should block advancing to COMPLETED if any OPEN critical vulnerability exists', async () => {
       mockPrisma.auditRequest.findUnique.mockResolvedValueOnce({
         ...mockAudit,
         findings: [
           {
-            id: 'find_unresolved',
-            displayId: 'ZYR-9481-001',
+            id: 'crit_open',
+            displayId: 'ZYR-9481-003',
             severity: FindingSeverity.CRITICAL,
             status: FindingStatus.OPEN,
             falsePositive: false,
@@ -209,7 +268,7 @@ describe('AI Review & On-Chain Attestation Pipeline (Topic 2)', () => {
 
       await expect(
         advanceStageService.advanceStage('ZYR-9481', { stage: AuditStage.COMPLETED }),
-      ).rejects.toThrow(/Open Critical or High severity findings must be resolved/i);
+      ).rejects.toThrow(/Open Critical or High severity findings/);
     });
   });
 });

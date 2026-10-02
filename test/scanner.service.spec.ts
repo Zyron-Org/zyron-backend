@@ -4,7 +4,7 @@ import { ScannerService } from '../src/scanner/scanner.service';
 import { TokenScannerService } from '../src/scanner/token-scanner.service';
 import { ScanOrchestratorService } from '../src/scanner/services/scan-orchestrator.service';
 import { TokenRuleScannerService } from '../src/scanner/services/token-rule-scanner.service';
-import { AiLocalReasonerService } from '../src/scanner/services/ai-local-reasoner.service';
+import { AiProviderFactory } from '../src/scanner/ai-providers';
 import { AiGeminiClientService } from '../src/scanner/services/ai-gemini-client.service';
 import { PrismaService } from '../src/database/database.module';
 import { GithubService } from '../src/integrations/github.service';
@@ -100,7 +100,7 @@ describe('ScannerService & TokenScannerService (Unit Tests)', () => {
         TokenScannerService,
         TokenRuleScannerService,
         AiAuditService,
-        AiLocalReasonerService,
+        { provide: AiProviderFactory, useValue: { getProvider: vi.fn(), getSupportedProviders: vi.fn() } },
         AiGeminiClientService,
         { provide: ScanOrchestratorService, useValue: mockOrchestrator },
         { provide: PrismaService, useValue: mockPrisma },

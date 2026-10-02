@@ -13,13 +13,19 @@ import { PassRegistryService } from './passes/pass-registry';
 import {
   TokenRuleScannerService,
   AiGeminiClientService,
-  AiLocalReasonerService,
   GithubWebhookHandlerService,
   LegacyScanRunnerService,
   ASTEngineRunnerService,
   FindingPersisterService,
   ScanOrchestratorService,
 } from './services';
+import {
+  GeminiProviderService,
+  AnthropicProviderService,
+  OpenAiProviderService,
+  DeepSeekProviderService,
+  AiProviderFactory,
+} from './ai-providers';
 
 @Module({
   imports: [AuthModule, IntegrationsModule, forwardRef(() => AuditModule), ScannerEngineModule],
@@ -31,7 +37,11 @@ import {
     ScannerGateway,
     TokenRuleScannerService,
     AiGeminiClientService,
-    AiLocalReasonerService,
+    GeminiProviderService,
+    AnthropicProviderService,
+    OpenAiProviderService,
+    DeepSeekProviderService,
+    AiProviderFactory,
     GithubWebhookHandlerService,
     PassRegistryService,
     LegacyScanRunnerService,
@@ -45,8 +55,11 @@ import {
     AiAuditService,
     ScannerGateway,
     TokenRuleScannerService,
-    AiGeminiClientService,
-    AiLocalReasonerService,
+    GeminiProviderService,
+    AnthropicProviderService,
+    OpenAiProviderService,
+    DeepSeekProviderService,
+    AiProviderFactory,
     GithubWebhookHandlerService,
     PassRegistryService,
     LegacyScanRunnerService,

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TokenRuleScannerService } from './token-rule-scanner.service';
-import { AiLocalReasonerService } from './ai-local-reasoner.service';
+import { AiAuditService } from '../ai-audit.service';
 
 export interface LegacyFinding {
   title: string;
@@ -19,13 +19,18 @@ export class LegacyScanRunnerService {
 
   constructor(
     private tokenScanner: TokenRuleScannerService,
-    private aiAuditService: AiLocalReasonerService,
+    private aiAuditService: AiAuditService,
   ) {}
 
   async run(contractFileName: string, code: string): Promise<LegacyFinding[]> {
     this.logger.log(`Running legacy scanners on ${contractFileName}`);
     const tokenResult = this.tokenScanner.analyzeTokenCode(contractFileName, code);
-    const aiResult = await this.aiAuditService.analyzeContractWithAi(contractFileName, code);
-    return [...tokenResult.findings, ...aiResult.findings];
+    try {
+      const aiResult = await this.aiAuditService.analyzeContractWithAi(contractFileName, code);
+      return [...tokenResult.findings, ...aiResult.findings];
+    } catch (err: any) {
+      this.logger.warn(`AI analysis skipped in legacy runner: ${err.message}`);
+      return tokenResult.findings;
+    }
   }
 }
