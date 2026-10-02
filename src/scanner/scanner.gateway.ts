@@ -54,10 +54,26 @@ export class ScannerGateway {
     findingCount: number;
   }) {
     const room = `audit:${auditId}:scan`;
-    this.server.to(room).emit('scan_progress', {
-      auditId,
-      timestamp: new Date().toISOString(),
-      ...event,
-    });
+    if (this.server) {
+      this.server.to(room).emit('scan_progress', {
+        auditId,
+        timestamp: new Date().toISOString(),
+        ...event,
+      });
+    }
+  }
+
+  /**
+   * Emit prover completion event with verification traces to connected clients
+   */
+  emitProverComplete(auditId: string, payload: any) {
+    const room = `audit:${auditId}:scan`;
+    if (this.server) {
+      this.server.to(room).emit('prover_complete', {
+        auditId,
+        timestamp: new Date().toISOString(),
+        ...payload,
+      });
+    }
   }
 }

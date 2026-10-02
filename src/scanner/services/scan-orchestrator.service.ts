@@ -5,6 +5,7 @@ import { GithubWebhookHandlerService } from './github-webhook-handler.service';
 import { LegacyScanRunnerService } from './legacy-scan-runner.service';
 import { ASTEngineRunnerService } from './ast-engine-runner.service';
 import { FindingPersisterService } from './finding-persister.service';
+import { AgentProverClientService } from './agent-prover-client.service';
 import { AuditStage } from '../../common/enum';
 
 @Injectable()
@@ -17,6 +18,7 @@ export class ScanOrchestratorService {
     private legacyRunner: LegacyScanRunnerService,
     private astRunner: ASTEngineRunnerService,
     private findingPersister: FindingPersisterService,
+    private agentProverClient: AgentProverClientService,
   ) {}
 
   getScanJobsByAudit(auditId: string) {
@@ -135,6 +137,36 @@ export class ScanOrchestratorService {
       where: { id: auditId },
       data: { stage: AuditStage.IN_REVIEW, stageNumber: 3 },
     });
+
+    // Auto-dispatch Critical & High findings to autonomous AI EVM sandbox prover
+    try {
+      const candidates = await this.prisma.finding.findMany({
+        where: {
+          auditId,
+          severity: { in: ['CRITICAL', 'HIGH'] },
+        },
+      });
+
+      if (candidates.length > 0) {
+        this.logger.log(`[ScanOrchestrator] Auto-dispatching ${candidates.length} Critical/High finding(s) to AI EVM sandbox prover...`);
+        this.agentProverClient.dispatchProverJob(
+          auditId,
+          sourceCode,
+          candidates.map((f) => ({
+            id: f.id,
+            title: f.title,
+            severity: f.severity,
+            description: f.description,
+            location: f.location,
+            vulnerableFunction: f.location?.split(':')[1] || undefined,
+          })),
+        ).catch((err) => {
+          this.logger.warn(`[ScanOrchestrator] Prover dispatch error: ${err.message}`);
+        });
+      }
+    } catch (e: any) {
+      this.logger.warn(`[ScanOrchestrator] Failed to query findings for prover dispatch: ${e.message}`);
+    }
 
     return { scanJob: updatedJob, scanRunId: scanRun.id, findingsCount: totalFindings };
   }

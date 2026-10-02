@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Query, UseGuards, Headers, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ScannerService } from './scanner.service';
 import { TokenScannerService } from './token-scanner.service';
@@ -78,5 +78,23 @@ export class ScannerController {
   @ApiOperation({ summary: 'Get scan job execution history for an audit engagement' })
   async getScanJobs(@Param('auditId') auditId: string) {
     return this.scannerService.getScanJobsByAudit(auditId);
+  }
+
+  @Post('prover-callback')
+  @ApiOperation({ summary: 'Internal webhook callback from zyron-agent to store EVM simulation trace steps' })
+  async proverCallback(
+    @Headers('x-zyron-agent-signature') signature: string,
+    @Body() payload: any,
+  ) {
+    const rawBody = JSON.stringify(payload);
+    return this.scannerService.handleProverCallback(signature, rawBody, payload);
+  }
+
+  @Post('audits/:auditId/prove')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Trigger autonomous AI EVM sandbox prover for High/Critical findings' })
+  async proveAudit(@Param('auditId') auditId: string) {
+    return this.scannerService.proveAuditFindings(auditId);
   }
 }

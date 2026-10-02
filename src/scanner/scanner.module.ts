@@ -18,6 +18,7 @@ import {
   ASTEngineRunnerService,
   FindingPersisterService,
   ScanOrchestratorService,
+  AgentProverClientService,
 } from './services';
 import {
   GeminiProviderService,
@@ -48,6 +49,7 @@ import {
     ASTEngineRunnerService,
     FindingPersisterService,
     ScanOrchestratorService,
+    AgentProverClientService,
   ],
   exports: [
     ScannerService,
@@ -66,6 +68,7 @@ import {
     ASTEngineRunnerService,
     FindingPersisterService,
     ScanOrchestratorService,
+    AgentProverClientService,
   ],
 })
 export class ScannerModule {}

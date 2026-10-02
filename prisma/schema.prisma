@@ -208,6 +208,8 @@ model Finding {
   falsePositive           Boolean  @default(false)
   fpJustification         String?  // Auditor justification for FP marking
   foundBy                 String   @default("STATIC") // STATIC, AI, MANUAL
+  traceSteps              String?  // JSON string containing step-by-step EVM call replay trace
+  synthesizedPoC          String?  // Synthesized Solidity exploit test contract
 
   auditId  String
   audit    AuditRequest @relation(fields: [auditId], references: [id])

@@ -29,3 +29,7 @@ export const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || '';
 export const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
 export const GITHUB_CALLBACK_URL = process.env.GITHUB_CALLBACK_URL || 'http://localhost:4000/api/v1/auth/github/callback';
 export const GITHUB_FRONTEND_REDIRECT = process.env.GITHUB_FRONTEND_REDIRECT || 'http://localhost:3000/auth/github/callback';
+
+export const ZYRON_AGENT_URL = process.env.ZYRON_AGENT_URL || 'http://localhost:5001';
+export const AGENT_API_KEY = process.env.AGENT_API_KEY || 'zyron_agent_internal_secret_key_2026_secure';
+export const CALLBACK_SHARED_SECRET = process.env.CALLBACK_SHARED_SECRET || 'zyron_callback_hmac_secret_2026';
