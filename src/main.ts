@@ -12,7 +12,7 @@ async function bootstrap() {
 
   // Global Prefix (/api/v1) matching codebase pattern
   app.setGlobalPrefix('api/v1', {
-    exclude: ['/docs', '/docs-json'],
+    exclude: ['/docs', '/docs-json', '/reports/(.*)', '/reports'],
   });
 
   // Security Middleware

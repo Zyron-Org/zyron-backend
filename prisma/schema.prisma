@@ -142,6 +142,13 @@ model AuditRequest {
   engineVersion     String  @default("v3.0.0-ast")
   ruleSetVersion    String  @default("v2026.09")
 
+  // Decentralized IPFS Storage
+  ipfsCid           String? // IPFS Content Identifier (e.g. bafybeig...)
+  ipfsReportUrl     String? // ipfs://{ipfsCid}
+  ipfsGatewayUrl    String? // Public HTTP gateway URL
+  ipfsMetadataCid   String? // IPFS CID for ERC-721 attestation metadata
+  ipfsPinnedAt      DateTime?
+
   // Failure
   failureReason String?
 

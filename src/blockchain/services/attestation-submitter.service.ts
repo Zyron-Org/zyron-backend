@@ -58,7 +58,9 @@ export class AttestationSubmitterService {
 
     const auditIdBytes32 = keccak256(toUtf8Bytes(audit.id));
     const bytecodeHashBytes32 = audit.bytecodeHash || `0x${'0'.repeat(64)}`;
-    const reportHashBytes32 = audit.merkleRoot || `0x${'0'.repeat(64)}`;
+    const reportHashBytes32 = audit.ipfsCid
+      ? keccak256(toUtf8Bytes(audit.ipfsCid))
+      : audit.merkleRoot || `0x${'0'.repeat(64)}`;
     const leadAuditorAddr = audit.leadAuditor?.walletAddress || wallet.address;
     const peerAuditorAddr = audit.peerAuditor?.walletAddress || ethers.ZeroAddress;
 

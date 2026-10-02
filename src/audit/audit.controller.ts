@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Body, Param, Query, UseGuards, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AuditService } from './audit.service';
 import { CreateAuditDto, AdvanceStageDto, CreateFindingDto, UpdateFindingDto, CreateCommentDto } from './dto/audit.dto';
@@ -35,6 +35,28 @@ export class AuditController {
   @ApiOperation({ summary: 'Get aggregate platform statistics and recent audit telemetry' })
   async getOverviewStats() {
     return this.auditService.getOverviewStats();
+  }
+
+  @Get(':id/report.pdf')
+  @Public()
+  @ApiOperation({ summary: 'Stream or download signed audit report PDF' })
+  async getReportPdf(@Param('id') id: string, @Res() res: any) {
+    const { buffer, fileName, ipfsCid } = await this.auditService.getAuditReportPdf(id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+    res.setHeader('Content-Length', buffer.length);
+    if (ipfsCid) {
+      res.setHeader('X-IPFS-CID', ipfsCid);
+      res.setHeader('X-IPFS-URI', `ipfs://${ipfsCid}`);
+    }
+    res.end(buffer);
+  }
+
+  @Get(':id/ipfs')
+  @Public()
+  @ApiOperation({ summary: 'Get decentralized IPFS attestation details for an audit' })
+  async getIpfsAttestation(@Param('id') id: string) {
+    return this.auditService.getIpfsAttestation(id);
   }
 
   @Get(':id')
