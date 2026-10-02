@@ -31,23 +31,47 @@ export class Pass14SymbolicExecution implements ScannerPass {
     cfg: any,
     findings: PassFinding[],
   ): void {
-    const pathGuards = new Set<string>();
-
-    const walkNode = (node: any) => {
+    const walkNode = (node: any, currentGuards: Set<string>) => {
       if (!node || typeof node !== 'object') return;
 
-      // 1. Collect require() and if-revert guards along execution path
+      const activeGuards = new Set(currentGuards);
+
+      // 1. Collect require() guards along sequential execution path
       if (node.type === 'FunctionCall' && node.expression?.name === 'require') {
         const condStr = JSON.stringify(node.arguments?.[0]);
-        if (condStr) pathGuards.add(condStr);
+        if (condStr) {
+          activeGuards.add(condStr);
+          currentGuards.add(condStr);
+        }
       }
 
+      // If this statement is an IfStatement:
       if (node.type === 'IfStatement') {
+        const condStr = JSON.stringify(node.condition);
         const bodyStr = JSON.stringify(node.TrueBody || node.trueBody || {});
         if (bodyStr.includes('revert') || bodyStr.includes('RevertStatement')) {
-          const condStr = JSON.stringify(node.condition);
-          if (condStr) pathGuards.add(condStr);
+          if (condStr) {
+            activeGuards.add(condStr);
+            currentGuards.add(condStr);
+          }
         }
+
+        // Statements INSIDE trueBody have condition as an active positive constraint
+        if (node.trueBody || node.TrueBody) {
+          const trueBranchGuards = new Set(activeGuards);
+          if (condStr) trueBranchGuards.add(condStr);
+          walkNode(node.trueBody || node.TrueBody, trueBranchGuards);
+        }
+
+        if (node.falseBody || node.FalseBody) {
+          const falseBranchGuards = new Set(activeGuards);
+          walkNode(node.falseBody || node.FalseBody, falseBranchGuards);
+        }
+
+        if (node.condition) {
+          walkNode(node.condition, activeGuards);
+        }
+        return;
       }
 
       // 2. Check assert() statements — assert should only test invariants, never input validation
@@ -83,8 +107,8 @@ export class Pass14SymbolicExecution implements ScannerPass {
         const divisor = node.right;
         const divisorName = divisor?.name;
         if (divisorName && fn.parameters.some((p) => p.name === divisorName)) {
-          // Check if pathGuards contain `divisorName != 0` or `divisorName > 0` or if-revert on zero (`== 0`, `<= 0`)
-          const isGuarded = Array.from(pathGuards).some(
+          // Check if activeGuards contain `divisorName != 0` or `divisorName > 0` or if-revert on zero (`== 0`, `<= 0`)
+          const isGuarded = Array.from(activeGuards).some(
             (g) => g.includes(divisorName) && (g.includes('!=') || g.includes('>') || g.includes('==') || g.includes('<=')),
           );
 
@@ -112,11 +136,11 @@ export class Pass14SymbolicExecution implements ScannerPass {
       for (const key of Object.keys(node)) {
         if (key === 'loc') continue;
         const child = node[key];
-        if (Array.isArray(child)) child.forEach(walkNode);
-        else if (child && typeof child === 'object') walkNode(child);
+        if (Array.isArray(child)) child.forEach((c) => walkNode(c, activeGuards));
+        else if (child && typeof child === 'object') walkNode(child, activeGuards);
       }
     };
 
-    walkNode(fn.astNode);
+    walkNode(fn.astNode, new Set<string>());
   }
 }
