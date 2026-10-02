@@ -16,8 +16,28 @@ async function bootstrap() {
   });
 
   // Security Middleware
-  app.use(helmet());
-  app.enableCors({ origin: origins, credentials: true });
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
+  app.enableCors({
+    origin: (origin, callback) => {
+      if (
+        !origin ||
+        origins.includes(origin) ||
+        origin.startsWith('http://localhost:') ||
+        origin.startsWith('http://127.0.0.1:')
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error('CORS origin denied'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-zyron-agent-key', 'x-zyron-agent-signature'],
+  });
 
   // Global Validation & Exception Handling
   app.useGlobalPipes(
