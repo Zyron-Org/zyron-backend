@@ -59,6 +59,10 @@ export class AuditService {
     return this.findingsService.updateFinding(findingId, dto, userRole);
   }
 
+  deleteFinding(findingId: string, userRole: UserRole) {
+    return this.findingsService.deleteFinding(findingId, userRole);
+  }
+
   findFindingsByAudit(auditId: string, role?: UserRole) {
     return this.findingsService.findFindingsByAudit(auditId, role);
   }

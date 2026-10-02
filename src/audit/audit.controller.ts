@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AuditService } from './audit.service';
 import { CreateAuditDto, AdvanceStageDto, CreateFindingDto, UpdateFindingDto, CreateCommentDto } from './dto/audit.dto';
@@ -118,6 +118,16 @@ export class FindingController {
     @CurrentUser() user: CurrentUserPayload,
   ) {
     return this.auditService.updateFinding(findingId, dto, user.role);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.AUDITOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Permanently delete a vulnerability finding (Auditor / Admin only)' })
+  async deleteFinding(
+    @Param('id') findingId: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.auditService.deleteFinding(findingId, user.role);
   }
 
   @Post(':id/comments')

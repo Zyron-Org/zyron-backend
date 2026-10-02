@@ -114,4 +114,25 @@ export class FindingsService {
       orderBy: { severity: 'asc' },
     });
   }
+
+  async deleteFinding(findingId: string, userRole: UserRole) {
+    const finding = await this.prisma.finding.findUnique({
+      where: { id: findingId },
+      include: { audit: true },
+    });
+    if (!finding) {
+      throw new NotFoundException(`Finding ${findingId} not found`);
+    }
+
+    if (userRole !== UserRole.AUDITOR && userRole !== UserRole.ADMIN) {
+      throw new BadRequestException('Only auditors and administrators can delete findings.');
+    }
+
+    if (finding.audit?.stage === AuditStage.COMPLETED) {
+      throw new BadRequestException('Cannot delete finding: Target audit is completed and sealed.');
+    }
+
+    await this.prisma.comment.deleteMany({ where: { findingId } });
+    return this.prisma.finding.delete({ where: { id: findingId } });
+  }
 }
