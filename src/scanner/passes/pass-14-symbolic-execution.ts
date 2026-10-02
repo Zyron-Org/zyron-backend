@@ -36,40 +36,49 @@ export class Pass14SymbolicExecution implements ScannerPass {
 
       const activeGuards = new Set(currentGuards);
 
-      // 1. Collect require() guards along sequential execution path
-      if (node.type === 'FunctionCall' && node.expression?.name === 'require') {
-        const condStr = JSON.stringify(node.arguments?.[0]);
-        if (condStr) {
-          activeGuards.add(condStr);
-          currentGuards.add(condStr);
-        }
-      }
-
-      // If this statement is an IfStatement:
-      if (node.type === 'IfStatement') {
-        const condStr = JSON.stringify(node.condition);
-        const bodyStr = JSON.stringify(node.TrueBody || node.trueBody || {});
-        if (bodyStr.includes('revert') || bodyStr.includes('RevertStatement')) {
-          if (condStr) {
-            activeGuards.add(condStr);
-            currentGuards.add(condStr);
+      // If this is a sequential statements block, propagate guards down statement sequence
+      if (Array.isArray(node.statements)) {
+        for (const stmt of node.statements) {
+          // 1. Check require() statement
+          if (
+            (stmt.type === 'ExpressionStatement' &&
+              stmt.expression?.type === 'FunctionCall' &&
+              stmt.expression.expression?.name === 'require') ||
+            (stmt.type === 'FunctionCall' && stmt.expression?.name === 'require')
+          ) {
+            const callNode = stmt.type === 'FunctionCall' ? stmt : stmt.expression;
+            const condStr = JSON.stringify(callNode.arguments?.[0]);
+            if (condStr) activeGuards.add(condStr);
           }
-        }
 
-        // Statements INSIDE trueBody have condition as an active positive constraint
-        if (node.trueBody || node.TrueBody) {
-          const trueBranchGuards = new Set(activeGuards);
-          if (condStr) trueBranchGuards.add(condStr);
-          walkNode(node.trueBody || node.TrueBody, trueBranchGuards);
-        }
+          // 2. Check if-revert statement
+          if (stmt.type === 'IfStatement') {
+            const bodyStr = JSON.stringify(stmt.trueBody || stmt.TrueBody || {});
+            if (bodyStr.includes('revert') || bodyStr.includes('RevertStatement')) {
+              const condStr = JSON.stringify(stmt.condition);
+              if (condStr) activeGuards.add(condStr);
+            }
 
-        if (node.falseBody || node.FalseBody) {
-          const falseBranchGuards = new Set(activeGuards);
-          walkNode(node.falseBody || node.FalseBody, falseBranchGuards);
-        }
+            // Statements INSIDE trueBody also have condition as active positive constraint
+            if (stmt.trueBody || stmt.TrueBody) {
+              const trueBranchGuards = new Set(activeGuards);
+              const condStr = JSON.stringify(stmt.condition);
+              if (condStr) trueBranchGuards.add(condStr);
+              walkNode(stmt.trueBody || stmt.TrueBody, trueBranchGuards);
+            }
 
-        if (node.condition) {
-          walkNode(node.condition, activeGuards);
+            if (stmt.falseBody || stmt.FalseBody) {
+              const falseBranchGuards = new Set(activeGuards);
+              walkNode(stmt.falseBody || stmt.FalseBody, falseBranchGuards);
+            }
+
+            if (stmt.condition) {
+              walkNode(stmt.condition, activeGuards);
+            }
+            continue;
+          }
+
+          walkNode(stmt, activeGuards);
         }
         return;
       }

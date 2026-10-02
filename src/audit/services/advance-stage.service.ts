@@ -118,6 +118,20 @@ export class AdvanceStageService {
       data.reportPdfUrl = `/reports/${auditId}-${audit.contractFileName}.pdf`;
       data.pdfSize = '2.4 MB';
 
+      // Compute deterministic findings Merkle root
+      const findingsList = audit.findings.map((f) => ({ displayId: f.displayId, severity: f.severity }));
+      const merkleRoot = this.blockchainService.computeFindingsMerkleRoot(findingsList);
+      data.merkleRoot = merkleRoot;
+
+      // Persist Merkle root & bytecode hash ahead of on-chain submission
+      await this.prisma.auditRequest.update({
+        where: { id: auditId },
+        data: {
+          merkleRoot,
+          bytecodeHash: data.bytecodeHash,
+        },
+      });
+
       // Automatically trigger on-chain attestation publishing
       try {
         const onChainRes = await this.blockchainService.submitAutomatedAttestation(auditId);
