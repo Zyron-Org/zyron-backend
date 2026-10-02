@@ -4,6 +4,7 @@ import * as crypto from 'crypto';
 import { PrismaService } from '../../database/database.module';
 import { ScannerGateway } from '../scanner.gateway';
 import { ZYRON_AGENT_URL, AGENT_API_KEY, CALLBACK_SHARED_SECRET, PORT } from '../../config';
+import { AuditStage } from '../../common/enum';
 
 export interface ProverFindingItem {
   id: string;
@@ -37,6 +38,8 @@ export interface ProverResultItem {
 export interface ProverCallbackPayload {
   jobId: string;
   auditId: string;
+  status?: 'COMPLETED' | 'FAILED';
+  error?: string;
   results: ProverResultItem[];
   durationMs: number;
 }
@@ -145,10 +148,41 @@ export class AgentProverClientService {
       }
     }
 
-    const { auditId, results, jobId } = payload;
+    const { auditId, results, jobId, status, error } = payload;
     this.logger.log(
-      `[AgentProverClient] Received prover callback for audit ${auditId} (job: ${jobId}, results: ${results?.length || 0})`,
+      `[AgentProverClient] Received prover callback for audit ${auditId} (job: ${jobId}, status: ${status || 'COMPLETED'}, results: ${results?.length || 0})`,
     );
+
+    // If the prover failed, halt the pipeline and mark stage as FAILED
+    if (status === 'FAILED') {
+      const failureReason = `AI EVM Sandbox Prover Error: ${error || 'Synthesis/Simulation failed'}`;
+      this.logger.error(`[AgentProverClient] Prover execution failed for audit ${auditId}: ${failureReason}`);
+
+      await this.prisma.auditRequest.update({
+        where: { id: auditId },
+        data: {
+          stage: 'FAILED',
+          failureReason,
+        },
+      });
+
+      await this.prisma.scanJob.updateMany({
+        where: { auditId },
+        data: {
+          status: 'failed',
+        },
+      });
+
+      this.scannerGateway.emitScanProgress(auditId, {
+        passNumber: 14,
+        totalPasses: 14,
+        tool: 'zyron-agent-prover',
+        log: `[PROVER ERROR] ${failureReason}`,
+        findingCount: 0,
+      });
+
+      return { success: false, error: failureReason };
+    }
 
     if (!Array.isArray(results)) {
       throw new BadRequestException('Payload missing valid results array');
@@ -204,7 +238,22 @@ export class AgentProverClientService {
       results,
     });
 
-    this.logger.log(`[AgentProverClient] Successfully updated ${updatedCount} finding(s) with EVM traces.`);
+    // Advance audit to IN_REVIEW now that the AI EVM prover has completed simulation
+    const currentAudit = await this.prisma.auditRequest.findUnique({
+      where: { id: auditId },
+    });
+    if (currentAudit && (currentAudit.stage === 'SCANNING' || currentAudit.stage === 'PENDING')) {
+      await this.prisma.auditRequest.update({
+        where: { id: auditId },
+        data: {
+          stage: AuditStage.IN_REVIEW,
+          stageNumber: 3,
+          failureReason: null,
+        },
+      });
+    }
+
+    this.logger.log(`[AgentProverClient] Successfully updated ${updatedCount} finding(s) with EVM traces. Audit advanced to IN_REVIEW.`);
     return { success: true, updatedCount };
   }
 
@@ -225,6 +274,15 @@ export class AgentProverClientService {
     if (!sourceCode) {
       throw new BadRequestException(`No contract source code available for audit ${auditId}`);
     }
+
+    // Reset failure state upon manual rerun
+    await this.prisma.auditRequest.update({
+      where: { id: auditId },
+      data: {
+        stage: AuditStage.SCANNING,
+        failureReason: null,
+      },
+    });
 
     return this.dispatchProverJob(
       auditId,

@@ -133,11 +133,6 @@ export class ScanOrchestratorService {
       },
     });
 
-    await this.prisma.auditRequest.update({
-      where: { id: auditId },
-      data: { stage: AuditStage.IN_REVIEW, stageNumber: 3 },
-    });
-
     // Auto-dispatch Critical & High findings to autonomous AI EVM sandbox prover
     try {
       const candidates = await this.prisma.finding.findMany({
@@ -149,6 +144,13 @@ export class ScanOrchestratorService {
 
       if (candidates.length > 0) {
         this.logger.log(`[ScanOrchestrator] Auto-dispatching ${candidates.length} Critical/High finding(s) to AI EVM sandbox prover...`);
+        
+        // Audit remains in SCANNING (stageNumber: 2) while prover executes
+        await this.prisma.auditRequest.update({
+          where: { id: auditId },
+          data: { stage: AuditStage.SCANNING, stageNumber: 2, failureReason: null },
+        });
+
         this.agentProverClient.dispatchProverJob(
           auditId,
           sourceCode,
@@ -160,12 +162,30 @@ export class ScanOrchestratorService {
             location: f.location,
             vulnerableFunction: f.location?.split(':')[1] || undefined,
           })),
-        ).catch((err) => {
-          this.logger.warn(`[ScanOrchestrator] Prover dispatch error: ${err.message}`);
+        ).catch(async (err) => {
+          const errMsg = `AI Prover Dispatch Failed: ${err.message}`;
+          this.logger.error(`[ScanOrchestrator] ${errMsg}`);
+          await this.prisma.auditRequest.update({
+            where: { id: auditId },
+            data: {
+              stage: 'FAILED',
+              failureReason: errMsg,
+            },
+          });
+        });
+      } else {
+        // No High/Critical findings needed proving, advance straight to IN_REVIEW
+        await this.prisma.auditRequest.update({
+          where: { id: auditId },
+          data: { stage: AuditStage.IN_REVIEW, stageNumber: 3, failureReason: null },
         });
       }
     } catch (e: any) {
       this.logger.warn(`[ScanOrchestrator] Failed to query findings for prover dispatch: ${e.message}`);
+      await this.prisma.auditRequest.update({
+        where: { id: auditId },
+        data: { stage: AuditStage.IN_REVIEW, stageNumber: 3 },
+      });
     }
 
     return { scanJob: updatedJob, scanRunId: scanRun.id, findingsCount: totalFindings };
