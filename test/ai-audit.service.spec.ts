@@ -21,11 +21,30 @@ describe('AiAuditService (Unit Tests)', () => {
   `;
 
   beforeEach(async () => {
+    const mockGeminiClient = {
+      callGeminiApi: vi.fn().mockResolvedValue({
+        modelUsed: 'Gemini 1.5 Pro',
+        findings: [
+          {
+            title: 'CRITICAL: Classic State-Reentrancy Vulnerability',
+            severity: 'CRITICAL',
+            cvss: 'CVSS 9.8',
+            taxonomy: 'SWC-107 · CWE-841',
+            location: 'VaultCore.sol:withdrawAll',
+            impact: 'DRAINAGE OF ENTIRE CONTRACT FUNDS VIA RECURSIVE REENTRANCY',
+            description: 'The contract sends ETH before updating balances.',
+            vulnerableCode: 'msg.sender.call{value: amount}("");',
+            remediatedCode: 'balances[msg.sender] = 0;\n(bool s, ) = msg.sender.call{value: amount}("");',
+          },
+        ],
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AiAuditService,
         AiLocalReasonerService,
-        AiGeminiClientService,
+        { provide: AiGeminiClientService, useValue: mockGeminiClient },
       ],
     }).compile();
 

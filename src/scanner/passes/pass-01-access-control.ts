@@ -73,7 +73,7 @@ export class Pass01AccessControl implements ScannerPass {
     const modifiers = fn.modifiers || [];
     const hasGuard = modifiers.some((m) =>
       ['initializer', 'reinitializer', 'onlyowner', 'onlyrole', 'protected'].includes((m.name || '').toLowerCase()),
-    );
+    ) || this.hasInBodyInitializerGuard(fn);
 
     if (!hasGuard && (fn.visibility === 'public' || fn.visibility === 'external')) {
       findings.push({
@@ -126,7 +126,7 @@ export class Pass01AccessControl implements ScannerPass {
       ['onlyowner', 'onlyadmin', 'onlyrole', 'onlygovernance', 'auth', 'restricted'].includes(
         (m.name || '').toLowerCase(),
       ),
-    );
+    ) || this.hasInBodyAuthCheck(fn);
 
     if (!hasAuthModifier) {
       findings.push({
@@ -134,7 +134,7 @@ export class Pass01AccessControl implements ScannerPass {
         swcId: 'SWC-284',
         cweId: 'CWE-862',
         title: 'Unprotected Sensitive Function',
-        description: `Critical function ${fnName} in contract ${contract.name} is public/external without access control modifiers.`,
+        description: `Critical function ${fnName} in contract ${contract.name} is public/external without access control modifiers or caller authorization checks.`,
         severity: 'CRITICAL',
         confidence: 'HIGH_CONFIDENCE',
         analysisPass: 1,
@@ -145,5 +145,57 @@ export class Pass01AccessControl implements ScannerPass {
         remediation: 'Restrict access using onlyOwner, onlyRole, or custom authorization modifiers.',
       });
     }
+  }
+
+  private hasInBodyAuthCheck(fn: ASTFunctionSymbol): boolean {
+    if (!fn.astNode?.body) return false;
+    const bodyStr = JSON.stringify(fn.astNode.body);
+
+    // 1. require(msg.sender == ...) or require(hasRole(...)) or require(isOwner(...))
+    const hasRequireAuth =
+      bodyStr.includes('msg.sender') && (bodyStr.includes('require') || bodyStr.includes('assert'));
+
+    // 2. if (msg.sender != ...) revert ... or if (!isOwner) revert ...
+    const hasRevertAuth =
+      bodyStr.includes('revert') &&
+      (bodyStr.includes('msg.sender') ||
+        bodyStr.includes('_msgSender') ||
+        bodyStr.includes('owner') ||
+        bodyStr.includes('admin') ||
+        bodyStr.includes('Unauthorized') ||
+        bodyStr.includes('NotAuthorized') ||
+        bodyStr.includes('OnlyOwner'));
+
+    // 3. OpenZeppelin / Solady internal auth calls
+    const hasInternalCheckCall =
+      bodyStr.includes('_checkOwner') ||
+      bodyStr.includes('_checkRole') ||
+      bodyStr.includes('_onlyOwner') ||
+      bodyStr.includes('_validateOwner') ||
+      bodyStr.includes('enforceIsOwner');
+
+    return hasRequireAuth || hasRevertAuth || hasInternalCheckCall;
+  }
+
+  private hasInBodyInitializerGuard(fn: ASTFunctionSymbol): boolean {
+    if (!fn.astNode?.body) return false;
+    const bodyStr = JSON.stringify(fn.astNode.body);
+
+    const hasRequireCheck =
+      bodyStr.includes('require') &&
+      (bodyStr.includes('!initialized') ||
+        bodyStr.includes('!_initialized') ||
+        bodyStr.includes('initialized == false') ||
+        bodyStr.includes('not initialized'));
+
+    const hasRevertCheck =
+      bodyStr.includes('revert') &&
+      (bodyStr.includes('AlreadyInitialized') ||
+        bodyStr.includes('InvalidInitialization') ||
+        bodyStr.includes('initialized'));
+
+    const hasDisableCall = bodyStr.includes('_disableInitializers');
+
+    return hasRequireCheck || hasRevertCheck || hasDisableCall || this.hasInBodyAuthCheck(fn);
   }
 }

@@ -61,6 +61,13 @@ describe('AuditService (Unit Tests)', () => {
         create: vi.fn(),
         findMany: vi.fn(),
       },
+      auditRound: {
+        create: vi.fn().mockResolvedValue({ id: 'rnd_1', roundNumber: 1, status: 'active' }),
+        count: vi.fn().mockResolvedValue(0),
+        findFirst: vi.fn().mockResolvedValue(null),
+        update: vi.fn(),
+        updateMany: vi.fn(),
+      },
     };
 
     mockBlockchainService = {

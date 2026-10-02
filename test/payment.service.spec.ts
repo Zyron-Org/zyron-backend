@@ -134,6 +134,20 @@ describe('PaymentService (Unit & Integration Tests)', () => {
 
       expect(result.chainId).toBe(8453);
     });
+
+    it('should throw BadRequestException if on-chain transaction verification failed or was reverted', async () => {
+      mockPrisma.auditRequest.findUnique.mockResolvedValue(mockAudit);
+      mockBlockchainService.verifyTransaction.mockResolvedValue({ valid: false, blockNumber: 123456 });
+
+      await expect(
+        paymentService.recordEscrowDeposit({
+          auditId: 'ZYR-9481',
+          escrowTxHash: '0xreverted_tx_hash',
+          chainId: 42161,
+          amount: 5000,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 
   describe('generateCorporateInvoice()', () => {

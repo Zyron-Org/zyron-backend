@@ -78,18 +78,27 @@ export class ScanOrchestratorService {
     });
 
     const existingCount = audit.findings.length;
+    let astPersistedCount = 0;
+    let legacyCount = 0;
+    let astResult: any = null;
 
-    // Phase 1: Legacy regex scanners (for backward compatibility)
-    const legacyFindings = await this.legacyRunner.run(audit.contractFileName, sourceCode);
-    const legacyCount = await this.findingPersister.persistLegacyFindings(auditId, existingCount, legacyFindings);
-
-    // Phase 2: AST engine (14-pass deep AST/CFG/Taint analysis)
-    const astResult = await this.astRunner.run(auditId, audit.contractFileName, sourceCode);
-    const astPersistedCount = await this.findingPersister.persistASTFindings(
-      auditId,
-      existingCount + legacyCount,
-      astResult.findings,
-    );
+    try {
+      // Primary: AST engine (14-pass deep AST/CFG/Taint analysis)
+      astResult = await this.astRunner.run(auditId, audit.contractFileName, sourceCode);
+      astPersistedCount = await this.findingPersister.persistASTFindings(
+        auditId,
+        existingCount,
+        astResult.findings,
+      );
+    } catch (err: any) {
+      this.logger.warn(`[AST Engine] Execution failed (${err.message}). Falling back to legacy regex scanner.`);
+      const legacyFindings = await this.legacyRunner.run(audit.contractFileName, sourceCode);
+      legacyCount = await this.findingPersister.persistLegacyFindings(auditId, existingCount, legacyFindings);
+      astResult = {
+        diagnostics: [{ code: 'AST_FALLBACK', message: err.message, severity: 'WARNING' }],
+        totalDurationMs: 0,
+      };
+    }
 
     const totalFindings = legacyCount + astPersistedCount;
 

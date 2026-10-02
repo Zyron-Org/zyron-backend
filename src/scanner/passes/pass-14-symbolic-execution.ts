@@ -36,10 +36,18 @@ export class Pass14SymbolicExecution implements ScannerPass {
     const walkNode = (node: any) => {
       if (!node || typeof node !== 'object') return;
 
-      // 1. Collect require() guards along execution path
+      // 1. Collect require() and if-revert guards along execution path
       if (node.type === 'FunctionCall' && node.expression?.name === 'require') {
         const condStr = JSON.stringify(node.arguments?.[0]);
         if (condStr) pathGuards.add(condStr);
+      }
+
+      if (node.type === 'IfStatement') {
+        const bodyStr = JSON.stringify(node.TrueBody || node.trueBody || {});
+        if (bodyStr.includes('revert') || bodyStr.includes('RevertStatement')) {
+          const condStr = JSON.stringify(node.condition);
+          if (condStr) pathGuards.add(condStr);
+        }
       }
 
       // 2. Check assert() statements — assert should only test invariants, never input validation
@@ -75,9 +83,9 @@ export class Pass14SymbolicExecution implements ScannerPass {
         const divisor = node.right;
         const divisorName = divisor?.name;
         if (divisorName && fn.parameters.some((p) => p.name === divisorName)) {
-          // Check if pathGuards contain `divisorName != 0` or `divisorName > 0`
+          // Check if pathGuards contain `divisorName != 0` or `divisorName > 0` or if-revert on zero (`== 0`, `<= 0`)
           const isGuarded = Array.from(pathGuards).some(
-            (g) => g.includes(divisorName) && (g.includes('!=') || g.includes('>')),
+            (g) => g.includes(divisorName) && (g.includes('!=') || g.includes('>') || g.includes('==') || g.includes('<=')),
           );
 
           if (!isGuarded) {

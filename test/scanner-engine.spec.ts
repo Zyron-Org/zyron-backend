@@ -210,6 +210,64 @@ contract Branch {
       );
       expect(criticalReentrancy.length).toBe(0);
     });
+
+    it('should detect untrusted parameter flow to low-level call sink in Pass 13 (Taint)', async () => {
+      const fixturePath = path.join(__dirname, 'fixtures', 'UnprotectedInitializer.sol');
+      const code = fs.readFileSync(fixturePath, 'utf-8');
+      const files = await importResolver.resolveProject(fixturePath, code);
+      const project = astParser.parseProject(files);
+      cfgBuilder.buildCFGs(project);
+
+      const { findings } = await passRegistry.runAllPasses(project);
+      const taintFindings = findings.filter((f) => f.ruleId === 'ZYRON-13-001');
+      expect(taintFindings.length).toBeGreaterThanOrEqual(1);
+      expect(taintFindings[0].title).toContain('Sink');
+    });
+
+    it('should detect feasible division-by-zero and assertion failure paths in Pass 14 (Symbolic)', async () => {
+      const code = `
+        pragma solidity ^0.8.20;
+        contract MathTester {
+          function split(uint256 total, uint256 parts) external pure returns (uint256) {
+            assert(parts > 0);
+            return total / parts;
+          }
+        }
+      `;
+      const files = await importResolver.resolveProject('MathTester.sol', code);
+      const project = astParser.parseProject(files);
+      cfgBuilder.buildCFGs(project);
+
+      const { findings } = await passRegistry.runAllPasses(project);
+      const assertFindings = findings.filter((f) => f.ruleId === 'ZYRON-14-001');
+      const divZeroFindings = findings.filter((f) => f.ruleId === 'ZYRON-14-002');
+      expect(assertFindings.length).toBeGreaterThanOrEqual(1);
+      expect(divZeroFindings.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should suppress division-by-zero when guarded by require or if-revert in Pass 14', async () => {
+      const code = `
+        pragma solidity ^0.8.20;
+        error ZeroDivisor();
+        contract SafeMathTester {
+          function splitWithRequire(uint256 total, uint256 parts) external pure returns (uint256) {
+            require(parts > 0, "Zero divisor");
+            return total / parts;
+          }
+          function splitWithRevert(uint256 total, uint256 parts) external pure returns (uint256) {
+            if (parts == 0) revert ZeroDivisor();
+            return total / parts;
+          }
+        }
+      `;
+      const files = await importResolver.resolveProject('SafeMathTester.sol', code);
+      const project = astParser.parseProject(files);
+      cfgBuilder.buildCFGs(project);
+
+      const { findings } = await passRegistry.runAllPasses(project);
+      const divZeroFindings = findings.filter((f) => f.ruleId === 'ZYRON-14-002');
+      expect(divZeroFindings.length).toBe(0);
+    });
   });
 
   describe('AttestationService', () => {
