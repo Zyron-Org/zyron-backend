@@ -39,6 +39,7 @@ export class FindingsService {
         vulnerableLines: dto.vulnerableLines,
         remediatedCode: dto.remediatedCode,
         remediationNote: dto.remediationNote,
+        foundBy: dto.foundBy || 'MANUAL',
         auditId,
       },
       include: {
@@ -79,6 +80,7 @@ export class FindingsService {
     if (dto.fpJustification !== undefined) data.fpJustification = dto.fpJustification;
     if (dto.isMitigated !== undefined) data.isMitigated = dto.isMitigated;
     if (dto.mitigationJustification !== undefined) data.mitigationJustification = dto.mitigationJustification;
+    if (dto.foundBy !== undefined) data.foundBy = dto.foundBy;
 
     return this.prisma.finding.update({
       where: { id: findingId },

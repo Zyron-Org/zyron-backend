@@ -148,8 +148,9 @@ export class Pass01AccessControl implements ScannerPass {
   }
 
   private hasInBodyAuthCheck(fn: ASTFunctionSymbol): boolean {
-    if (!fn.astNode?.body) return false;
-    const bodyStr = JSON.stringify(fn.astNode.body);
+    const node: any = fn.astNode;
+    if (!node?.body) return false;
+    const bodyStr = JSON.stringify(node.body);
 
     // 1. require(msg.sender == ...) or require(hasRole(...)) or require(isOwner(...))
     const hasRequireAuth =
@@ -178,8 +179,9 @@ export class Pass01AccessControl implements ScannerPass {
   }
 
   private hasInBodyInitializerGuard(fn: ASTFunctionSymbol): boolean {
-    if (!fn.astNode?.body) return false;
-    const bodyStr = JSON.stringify(fn.astNode.body);
+    const node: any = fn.astNode;
+    if (!node?.body) return false;
+    const bodyStr = JSON.stringify(node.body);
 
     const hasRequireCheck =
       bodyStr.includes('require') &&

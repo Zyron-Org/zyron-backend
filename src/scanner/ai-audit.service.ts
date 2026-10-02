@@ -1,6 +1,7 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../database/database.module';
 import { AiProviderFactory, AiScanResult } from './ai-providers';
+import { FindingPersisterService } from './services/finding-persister.service';
 
 @Injectable()
 export class AiAuditService {
@@ -9,6 +10,7 @@ export class AiAuditService {
   constructor(
     private providerFactory: AiProviderFactory,
     private prisma: PrismaService,
+    @Optional() private findingPersister?: FindingPersisterService,
   ) {}
 
   /**
@@ -25,13 +27,20 @@ export class AiAuditService {
   ): Promise<AiScanResult> {
     try {
       const provider = this.providerFactory.getProvider(requestedModelOrProvider);
-      return await provider.analyzeContract(
+      const result = await provider.analyzeContract(
         contractFileName,
         code,
         staticFindings,
         protocolContext,
         requestedModelOrProvider,
       );
+
+      // Persist AI triage decisions (FP flags and novel findings) if auditId is present
+      if (auditId && this.findingPersister) {
+        await this.findingPersister.applyAiTriage(auditId, result);
+      }
+
+      return result;
     } catch (err: any) {
       this.logger.error(`AI Audit failed: ${err.message}`);
 

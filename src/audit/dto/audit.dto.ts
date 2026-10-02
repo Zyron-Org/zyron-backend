@@ -129,6 +129,11 @@ export class CreateFindingDto {
   @IsOptional()
   @IsString()
   remediationNote?: string;
+
+  @ApiPropertyOptional({ example: 'MANUAL', enum: ['STATIC', 'AI', 'MANUAL'], description: 'Origin discovery mechanism' })
+  @IsOptional()
+  @IsString()
+  foundBy?: string;
 }
 
 export class UpdateFindingDto {
@@ -184,6 +189,11 @@ export class UpdateFindingDto {
   @IsOptional()
   @IsString()
   mitigationJustification?: string;
+
+  @ApiPropertyOptional({ example: 'MANUAL', enum: ['STATIC', 'AI', 'MANUAL'], description: 'Origin discovery mechanism' })
+  @IsOptional()
+  @IsString()
+  foundBy?: string;
 }
 
 export class CreateCommentDto {

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import axios from 'axios';
-import { AiScanResult } from '../ai-audit.service';
+import { AiScanResult } from '../ai-providers';
 
 @Injectable()
 export class AiGeminiClientService {
@@ -89,6 +89,7 @@ Return a JSON object with:
 
     const parsed = JSON.parse(jsonText);
     return {
+      provider: 'gemini',
       modelUsed: 'Gemini 1.5 Pro (Google AI)',
       contractFileName,
       analysisSummary: parsed.analysisSummary || `Gemini 1.5 Pro audit complete for ${contractFileName}.`,

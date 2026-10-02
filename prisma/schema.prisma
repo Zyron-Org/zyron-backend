@@ -207,6 +207,7 @@ model Finding {
   ruleId                  String?  // e.g. "ZYRON-08-001"
   falsePositive           Boolean  @default(false)
   fpJustification         String?  // Auditor justification for FP marking
+  foundBy                 String   @default("STATIC") // STATIC, AI, MANUAL
 
   auditId  String
   audit    AuditRequest @relation(fields: [auditId], references: [id])
