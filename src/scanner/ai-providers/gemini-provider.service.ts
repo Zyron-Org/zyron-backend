@@ -33,19 +33,36 @@ export class GeminiProviderService implements AiProvider {
       throw new Error('Gemini API key is not configured.');
     }
 
-    const model = modelOverride || process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+    const model = modelOverride || process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
     const prompt = buildSecurityAuditPrompt(contractFileName, code, staticFindings, protocolContext);
 
     this.logger.log(`Invoking Google Gemini (${model}) for ${contractFileName}...`);
 
-    const res = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-      {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json' },
-      },
-      { timeout: 45000 },
-    );
+    let res: any;
+    try {
+      res = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: 'application/json' },
+        },
+        { timeout: 45000 },
+      );
+    } catch (err: any) {
+      if ((err.response?.status === 503 || err.response?.status === 404) && model !== 'gemini-3.5-flash-lite') {
+        this.logger.warn(`Model ${model} returned ${err.response.status}. Retrying with gemini-3.5-flash-lite...`);
+        res = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`,
+          {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: 'application/json' },
+          },
+          { timeout: 45000 },
+        );
+      } else {
+        throw err;
+      }
+    }
 
     const jsonText = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!jsonText) {
