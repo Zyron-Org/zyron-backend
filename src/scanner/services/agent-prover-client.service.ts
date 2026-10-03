@@ -230,6 +230,7 @@ export class AgentProverClientService {
             traceSteps: result.traceSteps ? JSON.stringify(result.traceSteps) : null,
             synthesizedPoC: result.synthesizedPoC || null,
             fuzzTestStatus: verdict || 'PROVEN_EXPLOIT',
+            fundsDrainedEth: typeof result.fundsDrainedEth === 'number' ? result.fundsDrainedEth : null,
             falsePositive: isFalsePositive ? true : finding.falsePositive,
             fpJustification,
             confidence: isExploit ? '100%' : (isFalsePositive ? '10%' : finding.confidence),
@@ -329,5 +330,24 @@ export class AgentProverClientService {
     return {
       token: audit.submittedBy?.githubAccessToken || null,
     };
+  }
+
+  /**
+   * Fetch autonomous prover execution transcript / logs for a given finding
+   */
+  async getFindingTranscript(findingId: string) {
+    try {
+      const response = await axios.get(
+        `${ZYRON_AGENT_URL}/api/v1/prover/findings/${findingId}/transcript`,
+        {
+          headers: { 'x-zyron-agent-key': AGENT_API_KEY },
+          timeout: 5000,
+        },
+      );
+      return response.data;
+    } catch (err: any) {
+      this.logger.warn(`Failed to fetch transcript for finding ${findingId}: ${err.message}`);
+      return { findingId, entriesCount: 0, entries: [] };
+    }
   }
 }

@@ -31,4 +31,8 @@ export class ScannerService {
   getRepoCredentials(apiKey: string | undefined, auditId: string) {
     return this.proverClient.getRepoCredentials(apiKey, auditId);
   }
+
+  getFindingTranscript(findingId: string) {
+    return this.proverClient.getFindingTranscript(findingId);
+  }
 }

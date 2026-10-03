@@ -209,6 +209,7 @@ model Finding {
   remediatedCode          String?
   remediationNote         String?
   fuzzTestStatus          String?
+  fundsDrainedEth         Float?
   isMitigated             Boolean  @default(false)
   mitigationJustification String?
   ruleId                  String?  // e.g. "ZYRON-08-001"

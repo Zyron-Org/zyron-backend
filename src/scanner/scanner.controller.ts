@@ -106,4 +106,10 @@ export class ScannerController {
   async proveAudit(@Param('auditId') auditId: string) {
     return this.scannerService.proveAuditFindings(auditId);
   }
+
+  @Get('findings/:findingId/transcript')
+  @ApiOperation({ summary: 'Get autonomous prover execution transcript / logs for a finding' })
+  async getFindingTranscript(@Param('findingId') findingId: string) {
+    return this.scannerService.getFindingTranscript(findingId);
+  }
 }
