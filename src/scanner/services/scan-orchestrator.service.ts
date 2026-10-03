@@ -138,12 +138,12 @@ export class ScanOrchestratorService {
       const candidates = await this.prisma.finding.findMany({
         where: {
           auditId,
-          severity: { in: ['CRITICAL', 'HIGH'] },
+          severity: { in: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] },
         },
       });
 
       if (candidates.length > 0) {
-        this.logger.log(`[ScanOrchestrator] Auto-dispatching ${candidates.length} Critical/High finding(s) to AI EVM sandbox prover...`);
+        this.logger.log(`[ScanOrchestrator] Auto-dispatching ${candidates.length} finding(s) to AI EVM sandbox prover...`);
         
         // Audit remains in SCANNING (stageNumber: 2) while prover executes
         await this.prisma.auditRequest.update({
