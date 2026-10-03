@@ -35,12 +35,13 @@ export class ASTEngineRunnerService {
     contractFileName: string,
     code: string,
     config?: PassConfig,
+    virtualFiles: Map<string, string> = new Map(),
   ): Promise<ASTScanExecutionResult> {
     const startTime = Date.now();
     const diagnostics: ScanDiagnostic[] = [];
 
-    this.logger.log(`[AST Engine] Resolving imports for ${contractFileName}`);
-    const fileMap = await this.importResolver.resolveProject(contractFileName, code);
+    this.logger.log(`[AST Engine] Resolving imports for ${contractFileName} with ${virtualFiles.size} virtual file(s)`);
+    const fileMap = await this.importResolver.resolveProject(contractFileName, code, {}, virtualFiles);
 
     // 1. Analyze Pragma directives
     const pragmaResult = this.pragmaAnalyzer.analyzePragmas(fileMap);

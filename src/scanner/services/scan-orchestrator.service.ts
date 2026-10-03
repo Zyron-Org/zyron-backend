@@ -6,6 +6,7 @@ import { LegacyScanRunnerService } from './legacy-scan-runner.service';
 import { ASTEngineRunnerService } from './ast-engine-runner.service';
 import { FindingPersisterService } from './finding-persister.service';
 import { AgentProverClientService } from './agent-prover-client.service';
+import { GithubService } from '../../integrations/github.service';
 import { AuditStage } from '../../common/enum';
 
 @Injectable()
@@ -19,6 +20,7 @@ export class ScanOrchestratorService {
     private astRunner: ASTEngineRunnerService,
     private findingPersister: FindingPersisterService,
     private agentProverClient: AgentProverClientService,
+    private githubService: GithubService,
   ) {}
 
   getScanJobsByAudit(auditId: string) {
@@ -36,11 +38,52 @@ export class ScanOrchestratorService {
     });
     if (!audit) throw new NotFoundException(`Audit engagement ${auditId} not found`);
 
-    // Determine source code: use customCode, or audit contract code if present
-    const sourceCode = customCode || audit.contractFileName;
+    // Build virtual file system for full repo import resolution
+    const virtualFiles = new Map<string, string>();
+    let sourceCode = customCode || audit.sourceCode;
+
+    if (audit.githubRepoUrl) {
+      try {
+        const { owner, repo } = this.githubService.parseRepoUrl(audit.githubRepoUrl);
+        const branch = audit.githubBranch || 'main';
+        this.logger.log(`[ScanOrchestrator] Fetching repository contracts for ${owner}/${repo} (${branch})...`);
+        const tree = await this.githubService.fetchRepoTree(owner, repo, branch);
+        if (tree && tree.contracts?.length > 0) {
+          await Promise.all(
+            tree.contracts.map(async (filePath) => {
+              try {
+                const content = await this.githubService.fetchFileContent(owner, repo, filePath, branch);
+                if (content) {
+                  virtualFiles.set(filePath, content);
+                  const basename = filePath.split('/').pop() || filePath;
+                  if (!virtualFiles.has(basename)) {
+                    virtualFiles.set(basename, content);
+                  }
+                  if (!sourceCode && (filePath === audit.contractFileName || basename === audit.contractFileName)) {
+                    sourceCode = content;
+                  }
+                }
+              } catch (err: any) {
+                this.logger.warn(`Failed to fetch repo file ${filePath}: ${err.message}`);
+              }
+            }),
+          );
+          this.logger.log(`[ScanOrchestrator] Ingested ${virtualFiles.size} virtual contract files into multi-file scope.`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`[ScanOrchestrator] Could not prefetch repository tree: ${err.message}`);
+      }
+    }
+
+    if (!sourceCode && audit.contractFileName && virtualFiles.has(audit.contractFileName)) {
+      sourceCode = virtualFiles.get(audit.contractFileName);
+    }
+
     if (!sourceCode) {
       throw new Error(`No source code available for audit ${auditId}`);
     }
+
+    virtualFiles.set(audit.contractFileName, sourceCode);
 
     // Compute source SHA-256 hash for attestation verification
     const sourceHash = crypto.createHash('sha256').update(sourceCode).digest('hex');
@@ -52,6 +95,7 @@ export class ScanOrchestratorService {
         stageNumber: 2,
         attestationStatus: 'AUTOMATED_ONLY',
         sourceHash: `0x${sourceHash}`,
+        sourceCode: audit.sourceCode ? undefined : sourceCode,
       },
     });
 
@@ -85,8 +129,8 @@ export class ScanOrchestratorService {
     let astResult: any = null;
 
     try {
-      // Primary: AST engine (14-pass deep AST/CFG/Taint analysis)
-      astResult = await this.astRunner.run(auditId, audit.contractFileName, sourceCode);
+      // Primary: AST engine (14-pass deep AST/CFG/Taint analysis with full virtual file scope)
+      astResult = await this.astRunner.run(auditId, audit.contractFileName, sourceCode, undefined, virtualFiles);
       astPersistedCount = await this.findingPersister.persistASTFindings(
         auditId,
         existingCount,

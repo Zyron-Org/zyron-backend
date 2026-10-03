@@ -31,28 +31,29 @@ export class Pass03Oracle implements ScannerPass {
     fn: ASTFunctionSymbol,
     findings: PassFinding[],
   ): void {
+    let hasGetReserves = false;
+    let spotMember = '';
+    let hasBalanceOfRatio = false;
+    let targetLine = fn.astNode?.loc?.start?.line || 1;
+
     const walkNode = (node: any) => {
       if (!node || typeof node !== 'object') return;
 
       if (node.type === 'FunctionCall' && node.expression?.type === 'MemberAccess') {
         const memberName = node.expression.memberName;
         if (memberName === 'getReserves' || memberName === 'slot0') {
-          const line = node.loc?.start?.line || fn.astNode.loc?.start?.line || 1;
-          findings.push({
-            ruleId: 'ZYRON-03-001',
-            swcId: 'SWC-116',
-            cweId: 'CWE-367',
-            title: 'Spot Price Manipulation (Uniswap getReserves / slot0)',
-            description: `Function ${fn.name} in contract ${contract.name} fetches spot price/reserves via ${memberName}() which can be manipulated in a single transaction using flash loans.`,
-            severity: 'CRITICAL',
-            confidence: 'HIGH_CONFIDENCE',
-            analysisPass: 3,
-            filePath: contract.filePath,
-            line,
-            codeSnippet: `call to .${memberName}() in ${fn.name}()`,
-            vulnerableCode: `(uint118 r0, uint118 r1,) = pair.getReserves();`,
-            remediation: 'Use a Time-Weighted Average Price (TWAP) oracle or Chainlink Decentralized Data Feeds instead of instant spot reserves.',
-          });
+          hasGetReserves = true;
+          spotMember = memberName;
+          targetLine = node.loc?.start?.line || targetLine;
+        }
+      }
+
+      // Generic spot price calculation: dividing balance queries or reserve balances to compute price/rate
+      if (node.type === 'BinaryOperation' && node.operator === '/') {
+        const str = JSON.stringify(node);
+        if (str.includes('balanceOf') || str.includes('reserve')) {
+          hasBalanceOfRatio = true;
+          targetLine = node.loc?.start?.line || targetLine;
         }
       }
 
@@ -65,6 +66,46 @@ export class Pass03Oracle implements ScannerPass {
     };
 
     walkNode(fn.astNode);
+
+    if (hasGetReserves) {
+      findings.push({
+        ruleId: 'ZYRON-03-001',
+        swcId: 'SWC-116',
+        cweId: 'CWE-367',
+        title: 'Spot Price Manipulation (Uniswap getReserves / slot0)',
+        description: `Function ${fn.name} in contract ${contract.name} fetches spot price/reserves via ${spotMember}() which can be manipulated in a single transaction using flash loans.`,
+        severity: 'CRITICAL',
+        confidence: 'HIGH_CONFIDENCE',
+        analysisPass: 3,
+        filePath: contract.filePath,
+        line: targetLine,
+        codeSnippet: `call to .${spotMember}() in ${fn.name}()`,
+        vulnerableCode: `(uint118 r0, uint118 r1,) = pair.${spotMember}();`,
+        remediation: 'Use a Time-Weighted Average Price (TWAP) oracle or Chainlink Decentralized Data Feeds instead of instant spot reserves.',
+      });
+    } else if (
+      hasBalanceOfRatio &&
+      (fn.name.toLowerCase().includes('price') ||
+        fn.name.toLowerCase().includes('rate') ||
+        fn.name.toLowerCase().includes('val') ||
+        fn.name.toLowerCase().includes('quote'))
+    ) {
+      findings.push({
+        ruleId: 'ZYRON-03-004',
+        swcId: 'SWC-116',
+        cweId: 'CWE-367',
+        title: 'Spot Price Manipulation via Instant Balance Ratio',
+        description: `Function ${fn.name} in contract ${contract.name} computes asset price or exchange rate directly from spot balance ratios without TWAP or oracle sanity checks.`,
+        severity: 'HIGH',
+        confidence: 'HIGH_CONFIDENCE',
+        analysisPass: 3,
+        filePath: contract.filePath,
+        line: targetLine,
+        codeSnippet: `spot balance division in ${fn.name}()`,
+        vulnerableCode: `(reserveA * PRECISION) / reserveB`,
+        remediation: 'Implement a Time-Weighted Average Price (TWAP) or integrate Chainlink decentralized price feeds to prevent single-block flash-loan manipulation.',
+      });
+    }
   }
 
   private checkChainlinkOracleStaleness(
