@@ -71,19 +71,28 @@ export class AgentProverClientService {
     );
 
     try {
-      // Mark finding records as QUEUED
-      for (const finding of targetFindings) {
-        await this.prisma.finding.updateMany({
-          where: { id: finding.id },
-          data: { fuzzTestStatus: 'QUEUED' },
-        });
-      }
+      // Query audit details to attach repository and compiler metadata
+      const audit = await this.prisma.auditRequest.findUnique({
+        where: { id: auditId },
+      });
+
+      const repo = audit?.githubRepoUrl
+        ? {
+            url: audit.githubRepoUrl,
+            branch: audit.githubBranch || undefined,
+            commit: audit.gitCommit || undefined,
+          }
+        : undefined;
 
       const response = await axios.post(
         `${ZYRON_AGENT_URL}/api/v1/prover/jobs`,
         {
           auditId,
           sourceCode,
+          contractFileName: audit?.contractFileName,
+          compilerVersion: audit?.compilerVersion,
+          network: audit?.network,
+          repo,
           findings: targetFindings,
           callbackUrl,
         },
@@ -202,7 +211,7 @@ export class AgentProverClientService {
 
         let fpJustification = finding.fpJustification;
         if (isFalsePositive) {
-          fpJustification = `Autonomous EVM Sandbox Verification: Reverted safely during simulated execution with 'LOCKED' mutex. Cannot drain contract funds (${fundsDrained} drained).`;
+          fpJustification = (result as any).reasoning || (result as any).summary || `Autonomous EVM Sandbox Verification: Invariant held during simulated attack. Target funds preserved (${fundsDrained} drained).`;
         }
 
         await this.prisma.finding.update({
@@ -288,5 +297,27 @@ export class AgentProverClientService {
         vulnerableFunction: f.location?.split(':')[1] || undefined,
       })),
     );
+  }
+
+  /**
+   * Internal endpoint helper: retrieve submitter's GitHub OAuth token for private repository clone
+   */
+  async getRepoCredentials(apiKey: string | undefined, auditId: string) {
+    if (!apiKey || apiKey !== AGENT_API_KEY) {
+      throw new UnauthorizedException('Invalid or missing x-zyron-agent-key header.');
+    }
+
+    const audit = await this.prisma.auditRequest.findUnique({
+      where: { id: auditId },
+      include: { submittedBy: true },
+    });
+
+    if (!audit) {
+      return { token: null };
+    }
+
+    return {
+      token: audit.submittedBy?.githubAccessToken || null,
+    };
   }
 }

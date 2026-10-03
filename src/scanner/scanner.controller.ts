@@ -90,6 +90,15 @@ export class ScannerController {
     return this.scannerService.handleProverCallback(signature, rawBody, payload);
   }
 
+  @Get('audits/:auditId/repo-credentials')
+  @ApiOperation({ summary: 'Internal authenticated endpoint for zyron-agent to fetch GitHub repo clone token' })
+  async getRepoCredentials(
+    @Headers('x-zyron-agent-key') apiKey: string,
+    @Param('auditId') auditId: string,
+  ) {
+    return this.scannerService.getRepoCredentials(apiKey, auditId);
+  }
+
   @Post('audits/:auditId/prove')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)

@@ -27,4 +27,8 @@ export class ScannerService {
   handleProverCallback(signature: string | undefined, rawBody: string | undefined, payload: any) {
     return this.proverClient.handleProverCallback(signature, rawBody, payload);
   }
+
+  getRepoCredentials(apiKey: string | undefined, auditId: string) {
+    return this.proverClient.getRepoCredentials(apiKey, auditId);
+  }
 }
