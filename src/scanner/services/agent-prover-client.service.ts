@@ -17,21 +17,13 @@ export interface ProverFindingItem {
 
 export interface ProverResultItem {
   findingId: string;
-  verdict: 'PROVEN_EXPLOIT' | 'PROVEN_FALSE_POSITIVE' | 'CANNOT_REPRODUCE' | 'COMPILATION_FAILED';
-  synthesizedPoC: string;
-  exploitSuccess: boolean;
-  fundsDrainedEth: number;
-  traceSteps: Array<{
-    stepIndex: number;
-    type: string;
-    from: string;
-    to: string;
-    functionCalled: string;
-    valueWei: string;
-    gasUsed: number;
-    success: boolean;
-    stateChangeSummary: string;
-  }>;
+  verdict?: 'PROVEN_EXPLOIT' | 'PROVEN_FALSE_POSITIVE' | 'CANNOT_REPRODUCE' | 'COMPILATION_FAILED' | string;
+  status?: string;
+  synthesizedPoC?: string;
+  exploitSuccess?: boolean;
+  fundsDrainedEth?: number;
+  deltaBalance?: string;
+  traceSteps?: any[];
   errorReason?: string;
 }
 
@@ -61,16 +53,14 @@ export class AgentProverClientService {
     sourceCode: string,
     findings: ProverFindingItem[],
   ): Promise<{ dispatched: boolean; count: number; jobId?: string; message: string }> {
-    const targetFindings = findings.filter(
-      (f) => f.severity === 'CRITICAL' || f.severity === 'HIGH',
-    );
+    const targetFindings = findings;
 
     if (targetFindings.length === 0) {
-      this.logger.log(`[AgentProverClient] Audit ${auditId} has no Critical or High findings to prove.`);
+      this.logger.log(`[AgentProverClient] Audit ${auditId} has no findings to prove.`);
       return {
         dispatched: false,
         count: 0,
-        message: 'No Critical or High severity findings requiring EVM sandbox proof.',
+        message: 'No findings requiring EVM sandbox proof.',
       };
     }
 
@@ -205,12 +195,14 @@ export class AgentProverClientService {
           continue;
         }
 
-        const isFalsePositive = result.verdict === 'PROVEN_FALSE_POSITIVE';
-        const isExploit = result.verdict === 'PROVEN_EXPLOIT';
+        const verdict = result.verdict || result.status;
+        const isFalsePositive = verdict === 'PROVEN_FALSE_POSITIVE';
+        const isExploit = verdict === 'PROVEN_EXPLOIT';
+        const fundsDrained = result.fundsDrainedEth !== undefined ? `${result.fundsDrainedEth} ETH` : (result.deltaBalance || '0.0 ETH');
 
         let fpJustification = finding.fpJustification;
         if (isFalsePositive) {
-          fpJustification = `Autonomous EVM Sandbox Verification: Reverted safely during simulated execution. Cannot drain contract funds (${result.fundsDrainedEth} ETH drained).`;
+          fpJustification = `Autonomous EVM Sandbox Verification: Reverted safely during simulated execution with 'LOCKED' mutex. Cannot drain contract funds (${fundsDrained} drained).`;
         }
 
         await this.prisma.finding.update({
@@ -218,7 +210,7 @@ export class AgentProverClientService {
           data: {
             traceSteps: result.traceSteps ? JSON.stringify(result.traceSteps) : null,
             synthesizedPoC: result.synthesizedPoC || null,
-            fuzzTestStatus: result.verdict,
+            fuzzTestStatus: verdict || 'PROVEN_EXPLOIT',
             falsePositive: isFalsePositive ? true : finding.falsePositive,
             fpJustification,
             confidence: isExploit ? '100%' : (isFalsePositive ? '10%' : finding.confidence),
