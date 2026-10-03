@@ -109,6 +109,16 @@ export class AgentProverClientService {
         `[AgentProverClient] Job submitted successfully: ${response.data.jobId} (status: ${response.data.status})`,
       );
 
+      // Mark target findings as RUNNING so UI displays active prover progress
+      await this.prisma.finding.updateMany({
+        where: {
+          id: { in: targetFindings.map((f) => f.id) },
+        },
+        data: {
+          fuzzTestStatus: 'RUNNING',
+        },
+      });
+
       return {
         dispatched: true,
         count: targetFindings.length,
