@@ -53,7 +53,7 @@ export class AttestationService {
 
     const targetChainId = audit.onChainChainId || Number(process.env.DEFAULT_ATTESTATION_CHAIN_ID || 421614);
     const config = this.chainConfig.getChainConfig(targetChainId);
-    const verifyingContract = config?.attestationAddress || '0x7682b6ddc20ce79b1cc4c30647f0384e7f2ab918';
+    const verifyingContract = config?.attestationAddress || '0x3331185fAEB2AD65ccDEB7C15025393Ca8F6834D';
 
     const nonFpFindings = audit.findings.filter((f) => !f.falsePositive);
     const merkleRoot = this.computeFindingsMerkleRoot(
