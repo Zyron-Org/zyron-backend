@@ -45,7 +45,7 @@ export class ScanOrchestratorService {
     if (audit.githubRepoUrl) {
       try {
         const { owner, repo } = this.githubService.parseRepoUrl(audit.githubRepoUrl);
-        const branch = audit.githubBranch || 'main';
+        const branch = audit.gitCommit || audit.githubBranch || 'main';
         this.logger.log(`[ScanOrchestrator] Fetching repository contracts for ${owner}/${repo} (${branch})...`);
         const tree = await this.githubService.fetchRepoTree(owner, repo, branch);
         if (tree && tree.contracts?.length > 0) {
@@ -59,7 +59,11 @@ export class ScanOrchestratorService {
                   if (!virtualFiles.has(basename)) {
                     virtualFiles.set(basename, content);
                   }
-                  if (!sourceCode && (filePath === audit.contractFileName || basename === audit.contractFileName)) {
+                  if (
+                    filePath === audit.contractFileName ||
+                    basename === audit.contractFileName ||
+                    (audit.contractFileName && filePath.endsWith('/' + audit.contractFileName))
+                  ) {
                     sourceCode = content;
                   }
                 }
@@ -95,7 +99,7 @@ export class ScanOrchestratorService {
         stageNumber: 2,
         attestationStatus: 'AUTOMATED_ONLY',
         sourceHash: `0x${sourceHash}`,
-        sourceCode: audit.sourceCode ? undefined : sourceCode,
+        sourceCode: sourceCode,
       },
     });
 
@@ -131,11 +135,20 @@ export class ScanOrchestratorService {
     try {
       // Primary: AST engine (14-pass deep AST/CFG/Taint analysis with full virtual file scope)
       astResult = await this.astRunner.run(auditId, audit.contractFileName, sourceCode, undefined, virtualFiles);
-      astPersistedCount = await this.findingPersister.persistASTFindings(
-        auditId,
-        existingCount,
-        astResult.findings,
-      );
+      if (existingCount > 0) {
+        const reconciliation = await this.findingPersister.reconcileASTFindings(
+          auditId,
+          astResult.findings,
+          audit.gitCommit || undefined,
+        );
+        astPersistedCount = reconciliation.unresolvedCount + reconciliation.regressionCount;
+      } else {
+        astPersistedCount = await this.findingPersister.persistASTFindings(
+          auditId,
+          existingCount,
+          astResult.findings,
+        );
+      }
     } catch (err: any) {
       this.logger.warn(`[AST Engine] Execution failed (${err.message}). Falling back to legacy regex scanner.`);
       const legacyFindings = await this.legacyRunner.run(audit.contractFileName, sourceCode);
@@ -183,11 +196,13 @@ export class ScanOrchestratorService {
         where: {
           auditId,
           severity: { in: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] },
+          status: { in: ['OPEN', 'FIX_SUBMITTED'] },
+          falsePositive: false,
         },
       });
 
       if (candidates.length > 0) {
-        this.logger.log(`[ScanOrchestrator] Auto-dispatching ${candidates.length} finding(s) to AI EVM sandbox prover...`);
+        this.logger.log(`[ScanOrchestrator] Auto-dispatching ${candidates.length} open finding(s) to AI EVM sandbox prover...`);
         
         // Audit remains in SCANNING (stageNumber: 2) while prover executes
         await this.prisma.auditRequest.update({

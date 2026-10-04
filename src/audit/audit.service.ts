@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { CreateAuditDto, AdvanceStageDto, CreateFindingDto, UpdateFindingDto, CreateCommentDto } from './dto/audit.dto';
 import { AuditStage, UserRole } from '../common/enum';
 import { PrismaService } from '../database/database.module';
 import { IpfsService } from '../ipfs/ipfs.service';
+import { ScannerService } from '../scanner/scanner.service';
 import {
   CreateAuditService,
   GetAuditsService,
@@ -30,7 +31,26 @@ export class AuditService {
     private commentsService: CommentsService,
     private autoAssignService: AutoAssignService,
     private auditVerificationService: AuditVerificationService,
+    @Inject(forwardRef(() => ScannerService))
+    private scannerService: ScannerService,
   ) {}
+
+  async submitFixes(auditId: string, gitCommit?: string) {
+    const updated = await this.advanceStageService.advanceStage(auditId, {
+      stage: AuditStage.SCANNING,
+      gitCommit,
+    });
+
+    setImmediate(async () => {
+      try {
+        await this.scannerService.runScan(auditId);
+      } catch (err: any) {
+        console.error(`[Re-Audit Scan Error for ${auditId}]:`, err?.message || err);
+      }
+    });
+
+    return updated;
+  }
 
   verifyAudit(input: VerifyAuditInput) {
     return this.auditVerificationService.verify(input);

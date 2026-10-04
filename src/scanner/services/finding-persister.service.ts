@@ -86,6 +86,137 @@ export class FindingPersisterService {
   }
 
   /**
+   * Reconcile AST findings during a re-audit / remediation pass:
+   * 1. Marks eliminated findings as RESOLVED with audit comment.
+   * 2. Marks still-present findings as UNRESOLVED / OPEN.
+   * 3. Flags any newly introduced flaws as REGRESSION findings.
+   */
+  async reconcileASTFindings(
+    auditId: string,
+    newFindings: PassFinding[],
+    commitRef?: string,
+  ): Promise<{ resolvedCount: number; unresolvedCount: number; regressionCount: number }> {
+    const existingFindings = await this.prisma.finding.findMany({
+      where: { auditId },
+    });
+
+    const systemUser = await this.prisma.user.findFirst({
+      where: { role: 'ADMIN' },
+    });
+
+    const commitShort = (commitRef || 'latest').slice(0, 7);
+    let resolvedCount = 0;
+    let unresolvedCount = 0;
+    let regressionCount = 0;
+
+    const isMatching = (existing: any, incoming: PassFinding) => {
+      const existFile = existing.location?.split(':')[0]?.split('/').pop();
+      const incomingFile = incoming.filePath?.split('/').pop();
+      if (!existFile || !incomingFile || existFile !== incomingFile) return false;
+
+      if (existing.ruleId && incoming.ruleId && existing.ruleId === incoming.ruleId) return true;
+      if (
+        existing.title &&
+        incoming.title &&
+        existing.title.toLowerCase().trim() === incoming.title.toLowerCase().trim()
+      ) {
+        return true;
+      }
+
+      return false;
+    };
+
+    for (const ef of existingFindings) {
+      if (ef.falsePositive || ef.status === FindingStatus.WONT_FIX) {
+        continue;
+      }
+
+      const stillPresent = newFindings.find((nf) => isMatching(ef, nf));
+
+      if (!stillPresent) {
+        await this.prisma.finding.update({
+          where: { id: ef.id },
+          data: {
+            status: FindingStatus.RESOLVED,
+            isMitigated: true,
+            remediationNote: `Automated AST re-scan verified fix in commit ${commitShort}.`,
+          },
+        });
+
+        if (systemUser) {
+          await this.prisma.comment.create({
+            data: {
+              findingId: ef.id,
+              auditId,
+              senderId: systemUser.id,
+              commitRef,
+              message: `[VERIFIED RESOLVED] Static AST analysis re-verification confirmed this vulnerability is resolved in commit ${commitShort}.`,
+            },
+          });
+        }
+        resolvedCount++;
+        this.logger.log(`[Re-Audit] Finding ${ef.displayId} verified RESOLVED at ${commitShort}`);
+      } else {
+        await this.prisma.finding.update({
+          where: { id: ef.id },
+          data: {
+            status: FindingStatus.OPEN,
+            remediationNote: `Vulnerability STILL DETECTED in commit ${commitShort} at line ${stillPresent.line}.`,
+          },
+        });
+
+        if (systemUser) {
+          await this.prisma.comment.create({
+            data: {
+              findingId: ef.id,
+              auditId,
+              senderId: systemUser.id,
+              commitRef,
+              message: `[UNRESOLVED] Vulnerability was still detected in commit ${commitShort} at line ${stillPresent.line}.`,
+            },
+          });
+        }
+        unresolvedCount++;
+        this.logger.warn(`[Re-Audit] Finding ${ef.displayId} STILL PRESENT at ${commitShort}`);
+      }
+    }
+
+    // Check for regressions
+    for (const nf of newFindings) {
+      const matched = existingFindings.find((ef) => isMatching(ef, nf));
+      if (!matched) {
+        const totalCount = await this.prisma.finding.count({ where: { auditId } });
+        const displayId = `${auditId}-${(totalCount + 1).toString().padStart(3, '0')}`;
+        const locationStr = `${nf.filePath}:${nf.line}`;
+        const remediationText = nf.remediation || nf.recommendation || 'Remediation advice unavailable.';
+
+        await this.prisma.finding.create({
+          data: {
+            displayId,
+            title: `[REGRESSION] ${nf.title}`,
+            severity: nf.severity,
+            status: FindingStatus.OPEN,
+            confidence: nf.confidence,
+            analysisPass: nf.analysisPass,
+            taxonomy: `${nf.swcId} · ${nf.cweId}`,
+            location: locationStr,
+            impact: `New regression introduced in remediation commit ${commitShort}. ${nf.description}`,
+            description: `REGRESSION ALERT: Introduced in commit ${commitShort}.\n\n${nf.description}\n\nCode Snippet:\n${nf.vulnerableCode || nf.codeSnippet}\n\nRemediation:\n${remediationText}`,
+            remediatedCode: remediationText,
+            ruleId: nf.ruleId,
+            foundBy: 'STATIC',
+            auditId,
+          },
+        });
+        regressionCount++;
+        this.logger.warn(`[Re-Audit] REGRESSION detected: ${nf.title} at ${locationStr}`);
+      }
+    }
+
+    return { resolvedCount, unresolvedCount, regressionCount };
+  }
+
+  /**
    * Apply AI triage decisions:
    * 1. Updates static findings flagged by AI as false positive or confirmed.
    * 2. Persists novel findings discovered independently by the AI (Task 2).

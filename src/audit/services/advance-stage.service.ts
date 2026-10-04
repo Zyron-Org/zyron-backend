@@ -80,7 +80,7 @@ export class AdvanceStageService {
       });
     }
 
-    if (dto.stage === AuditStage.IN_REVIEW && dto.gitCommit) {
+    if ((dto.stage === AuditStage.IN_REVIEW || dto.stage === AuditStage.SCANNING) && dto.gitCommit) {
       // Client submitted fixes for re-review: update latest active round commit
       const latestRound = await this.prisma.auditRound.findFirst({
         where: { auditId },
