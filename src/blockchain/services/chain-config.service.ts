@@ -30,7 +30,7 @@ export class ChainConfigService {
       name: 'Arbitrum Sepolia',
       rpcUrl: process.env.ARBITRUM_SEPOLIA_RPC_URL || 'https://sepolia-rollup.arbitrum.io/rpc',
       explorerUrl: 'https://sepolia.arbiscan.io',
-      attestationAddress: process.env.ARBITRUM_SEPOLIA_ATTESTATION_ADDRESS || process.env.ATTESTATION_CONTRACT_ADDRESS || '0x7682b6ddc20ce79b1cc4c30647f0384e7f2ab918',
+      attestationAddress: process.env.ARBITRUM_SEPOLIA_ATTESTATION_ADDRESS || process.env.ATTESTATION_CONTRACT_ADDRESS || '0x66038550944ACef89f3B9963eD517Fd958274852',
       nativeUsdcAddress: '',
     }],
     [8453, {
