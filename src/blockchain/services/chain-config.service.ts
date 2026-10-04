@@ -6,7 +6,7 @@ export interface ChainConfig {
   name: string;
   rpcUrl: string;
   explorerUrl: string;
-  escrowAddress: string;
+  escrowAddress?: string;
   attestationAddress: string;
   nativeUsdcAddress: string;
 }
@@ -22,7 +22,6 @@ export class ChainConfigService {
       name: 'Arbitrum One',
       rpcUrl: process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc',
       explorerUrl: 'https://arbiscan.io',
-      escrowAddress: process.env.ARBITRUM_ESCROW_ADDRESS || '',
       attestationAddress: process.env.ARBITRUM_ATTESTATION_ADDRESS || '',
       nativeUsdcAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
     }],
@@ -31,7 +30,6 @@ export class ChainConfigService {
       name: 'Arbitrum Sepolia',
       rpcUrl: process.env.ARBITRUM_SEPOLIA_RPC_URL || 'https://sepolia-rollup.arbitrum.io/rpc',
       explorerUrl: 'https://sepolia.arbiscan.io',
-      escrowAddress: process.env.ARBITRUM_SEPOLIA_ESCROW_ADDRESS || process.env.ESCROW_CONTRACT_ADDRESS || '0xd37269d1a023af210a191281f9a22d49f22f41d7',
       attestationAddress: process.env.ARBITRUM_SEPOLIA_ATTESTATION_ADDRESS || process.env.ATTESTATION_CONTRACT_ADDRESS || '0x7682b6ddc20ce79b1cc4c30647f0384e7f2ab918',
       nativeUsdcAddress: '',
     }],
@@ -40,7 +38,6 @@ export class ChainConfigService {
       name: 'Base',
       rpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
       explorerUrl: 'https://basescan.org',
-      escrowAddress: process.env.BASE_ESCROW_ADDRESS || '',
       attestationAddress: process.env.BASE_ATTESTATION_ADDRESS || '',
       nativeUsdcAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
     }],
@@ -49,7 +46,6 @@ export class ChainConfigService {
       name: 'Base Sepolia',
       rpcUrl: process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org',
       explorerUrl: 'https://sepolia.basescan.org',
-      escrowAddress: process.env.BASE_SEPOLIA_ESCROW_ADDRESS || '',
       attestationAddress: process.env.BASE_SEPOLIA_ATTESTATION_ADDRESS || '',
       nativeUsdcAddress: '',
     }],
@@ -58,7 +54,6 @@ export class ChainConfigService {
       name: 'Ethereum Mainnet',
       rpcUrl: process.env.ETHEREUM_RPC_URL || 'https://eth.llamarpc.com',
       explorerUrl: 'https://etherscan.io',
-      escrowAddress: process.env.ETHEREUM_ESCROW_ADDRESS || '',
       attestationAddress: process.env.ETHEREUM_ATTESTATION_ADDRESS || '',
       nativeUsdcAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
     }],

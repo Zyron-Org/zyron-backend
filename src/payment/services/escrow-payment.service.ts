@@ -17,7 +17,14 @@ export class EscrowPaymentService {
     });
 
     if (!payment) {
-      throw new NotFoundException(`Payment details for audit ${auditId} not found`);
+      return {
+        auditId,
+        status: 'FREE_BETA',
+        isFree: true,
+        amount: 0,
+        currency: 'USD',
+        method: 'COMPLIMENTARY',
+      };
     }
 
     return payment;

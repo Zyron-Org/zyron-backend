@@ -40,7 +40,7 @@ export class AttestationService {
   /**
    * Build the EIP-712 typed data payload for auditor signing.
    */
-  async buildAttestationPayload(auditId: string) {
+  async buildAttestationPayload(auditId: string, signerAddress?: string) {
     const audit = await this.prisma.auditRequest.findUnique({
       where: { id: auditId },
       include: { findings: true, leadAuditor: true },
@@ -63,6 +63,7 @@ export class AttestationService {
     const bytecodeHash = audit.bytecodeHash || `0x${createHash('sha256').update(`${audit.protocolName}:${audit.contractFileName}:${audit.gitCommit || ''}:${audit.id}`).digest('hex')}`;
     const sourceHash = audit.sourceHash || `0x${'0'.repeat(64)}`;
     const timestamp = Math.floor(Date.now() / 1000);
+    const leadAuditor = signerAddress || audit.leadAuditor?.walletAddress || '0x0000000000000000000000000000000000000000';
 
     const payload = {
       types: {
@@ -95,7 +96,7 @@ export class AttestationService {
         merkleRoot,
         bytecodeHash,
         sourceHash,
-        leadAuditor: audit.leadAuditor?.walletAddress || '0x0000000000000000000000000000000000000000',
+        leadAuditor,
         sloc: audit.sloc || 100,
         status: 2, // MANUALLY_ATTESTED
         timestamp,

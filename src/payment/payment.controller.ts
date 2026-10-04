@@ -3,19 +3,35 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { PaymentService } from './payment.service';
 import { RecordEscrowDepositDto, GenerateInvoiceDto } from './dto/payment.dto';
 import { JwtAuthGuard } from '../common/guards';
+import { Public } from '../common/decorators';
 
-@ApiTags('Payments & Escrow Settlement')
+@ApiTags('Payments & Access Model')
 @ApiBearerAuth()
 @Controller('payments')
 @UseGuards(JwtAuthGuard)
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
+  @Public()
+  @Get('model')
+  @ApiOperation({ summary: 'Get current platform payment and pricing model' })
+  async getPaymentModel() {
+    return {
+      isFreeBeta: true,
+      model: 'FREE_PUBLIC_BETA',
+      message: 'All smart contract security audits and on-chain attestations are currently 100% free.',
+    };
+  }
+
   @Post('escrow')
-  @ApiOperation({ summary: 'Record Web3 crypto escrow deposit transaction hash (USDC/USDT)' })
-  @ApiResponse({ status: 201, description: 'Payment recorded and escrow status set to ESCROWED' })
+  @ApiOperation({ summary: 'Deprecated: Web3 crypto escrow deposit' })
+  @ApiResponse({ status: 200, description: 'Platform is free — no escrow required' })
   async recordEscrowDeposit(@Body() dto: RecordEscrowDepositDto) {
-    return this.paymentService.recordEscrowDeposit(dto);
+    return {
+      isFreeBeta: true,
+      message: 'Zyron is currently 100% free. No escrow deposit required.',
+      auditId: dto.auditId,
+    };
   }
 
   @Post('invoice')

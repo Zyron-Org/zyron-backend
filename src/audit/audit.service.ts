@@ -207,8 +207,8 @@ export class AuditService {
     return audit;
   }
 
-  getAttestationPayload(auditId: string) {
-    return this.blockchainService.buildAttestationPayload(auditId);
+  getAttestationPayload(auditId: string, signerAddress?: string) {
+    return this.blockchainService.buildAttestationPayload(auditId, signerAddress);
   }
 
   async signAndCompleteAttestation(
@@ -217,20 +217,37 @@ export class AuditService {
     signerAddress: string,
     payloadMessage?: any,
     targetChainId?: number,
+    txHash?: string,
   ) {
     // 1. Advance stage to COMPLETED (handles 0 open crit/high check, PDF generation, IPFS pinning)
     const completedAudit = await this.advanceStageService.advanceStage(auditId, {
       stage: AuditStage.COMPLETED,
     });
 
-    // 2. Submit signed on-chain attestation via relayer to ZyronAttestation.sol
-    const onChainRes = await this.blockchainService.submitSignedAttestation(
-      auditId,
-      signature,
-      signerAddress,
-      payloadMessage,
-      targetChainId,
-    );
+    // 2. If client already broadcast the on-chain tx directly via Web3 wallet:
+    let onChainRes: any;
+    if (txHash && txHash.startsWith('0x')) {
+      const chainId = targetChainId || Number(process.env.DEFAULT_ATTESTATION_CHAIN_ID || 421614);
+      await this.prisma.auditRequest.update({
+        where: { id: auditId },
+        data: {
+          onChainTxHash: txHash,
+          onChainChainId: chainId,
+          attestationStatus: 'MANUALLY_ATTESTED',
+          attestationSig: signature,
+        },
+      });
+      onChainRes = { txHash, chainId, isRelayed: false };
+    } else {
+      // 3. Fallback: Submit signed on-chain attestation via relayer to ZyronAttestation.sol
+      onChainRes = await this.blockchainService.submitSignedAttestation(
+        auditId,
+        signature,
+        signerAddress,
+        payloadMessage,
+        targetChainId,
+      );
+    }
 
     return {
       audit: completedAudit,

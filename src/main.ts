@@ -63,7 +63,7 @@ async function bootstrap() {
     .addTag('Vulnerability Findings', 'Finding creation, severity/status updates, and remediation comment threads')
     .addTag('File Storage', 'Direct S3 upload presigned URLs and PDF report downloads')
     .addTag('GitHub Integration', 'GitHub repository selection and branch metadata retrieval')
-    .addTag('Payments & Escrow', 'Web3 crypto escrow deposits and corporate Net-30 invoice generation')
+    .addTag('Payments & Access Model', 'Platform access model and corporate invoice generation')
     .addTag('Organizations', 'Organization management, member invitations, and subscription tier settings')
     .addTag('Automated Scanner', 'Automated Slither/Mythril security scans, token risk analysis, and @zyron-bot PR webhooks')
     .build();

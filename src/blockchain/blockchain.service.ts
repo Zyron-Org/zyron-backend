@@ -45,8 +45,8 @@ export class BlockchainService {
   }
 
   // ─── Attestation Delegates ────────────────────────────
-  buildAttestationPayload(auditId: string) {
-    return this.attestation.buildAttestationPayload(auditId);
+  buildAttestationPayload(auditId: string, signerAddress?: string) {
+    return this.attestation.buildAttestationPayload(auditId, signerAddress);
   }
 
   computeFindingsMerkleRoot(findings: { displayId: string; severity: string }[]) {

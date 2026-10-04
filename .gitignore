@@ -3,6 +3,9 @@ dist/
 .env
 prisma/dev.db
 prisma/dev.db-journal
+dev.db
+dev.db-journal
+uploads/
 *.tsbuildinfo
 *.log
 npm-debug.log*

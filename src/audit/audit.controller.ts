@@ -164,18 +164,21 @@ export class AuditController {
   }
 
   @Get(':id/attestation/payload')
-  @Roles(UserRole.AUDITOR, UserRole.ADMIN)
+  @Public()
   @ApiOperation({ summary: 'Get EIP-712 typed data payload for auditor wallet signing' })
-  async getAttestationPayload(@Param('id') id: string) {
-    return this.auditService.getAttestationPayload(id);
+  async getAttestationPayload(
+    @Param('id') id: string,
+    @Query('signerAddress') signerAddress?: string,
+  ) {
+    return this.auditService.getAttestationPayload(id, signerAddress);
   }
 
   @Post(':id/attestation/sign')
-  @Roles(UserRole.AUDITOR, UserRole.ADMIN)
+  @Public()
   @ApiOperation({ summary: 'Submit auditor EIP-712 cryptographic signature to seal attestation and broadcast on-chain' })
   async signAndCompleteAttestation(
     @Param('id') id: string,
-    @Body() body: { signature: string; signerAddress: string; payloadMessage?: any; chainId?: number },
+    @Body() body: { signature: string; signerAddress: string; txHash?: string; payloadMessage?: any; chainId?: number },
   ) {
     return this.auditService.signAndCompleteAttestation(
       id,
@@ -183,6 +186,7 @@ export class AuditController {
       body.signerAddress,
       body.payloadMessage,
       body.chainId,
+      body.txHash,
     );
   }
 
