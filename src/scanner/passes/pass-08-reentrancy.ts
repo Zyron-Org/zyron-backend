@@ -129,12 +129,25 @@ export class Pass08Reentrancy implements ScannerPass {
   private isStateMutationStatement(stmt: any, stateVarNames: Set<string>): boolean {
     if (!stmt || typeof stmt !== 'object') return false;
 
-    // Don't count raw call/transfer statements as state mutations
+    // Statements that never mutate storage
+    if (
+      stmt.type === 'EmitStatement' ||
+      stmt.type === 'ReturnStatement' ||
+      stmt.type === 'VariableDeclarationStatement'
+    ) {
+      return false;
+    }
+
+    // Don't count raw call/transfer statements or requires as state mutations
     if (stmt.type === 'ExpressionStatement' && stmt.expression?.type === 'FunctionCall') {
       const expr = stmt.expression;
       if (expr.expression?.type === 'MemberAccess') {
         const m = expr.expression.memberName;
         if (m === 'call' || m === 'delegatecall' || m === 'transfer' || m === 'send') return false;
+      }
+      if (expr.expression?.type === 'Identifier') {
+        const idName = expr.expression.name;
+        if (idName === 'require' || idName === 'assert' || idName === 'revert') return false;
       }
     }
 
@@ -166,14 +179,6 @@ export class Pass08Reentrancy implements ScannerPass {
 
     if (targetName && stateVarNames.has(targetName)) {
       return true;
-    }
-
-    // Check if any stateVar is in the assignment target
-    const str = JSON.stringify(stmt);
-    for (const varName of stateVarNames) {
-      if (str.includes(`"${varName}"`)) {
-        return true;
-      }
     }
 
     return false;

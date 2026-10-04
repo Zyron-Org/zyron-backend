@@ -108,7 +108,10 @@ export class ScannerController {
   }
 
   @Get('findings/:findingId/transcript')
-  @ApiOperation({ summary: 'Get autonomous prover execution transcript / logs for a finding' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.AUDITOR)
+  @ApiOperation({ summary: 'Get autonomous prover execution transcript / logs for a finding (Auditor/Admin only)' })
   async getFindingTranscript(@Param('findingId') findingId: string) {
     return this.scannerService.getFindingTranscript(findingId);
   }

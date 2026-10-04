@@ -140,6 +140,8 @@ export class FindingPersisterService {
             status: FindingStatus.RESOLVED,
             isMitigated: true,
             remediationNote: `Automated AST re-scan verified fix in commit ${commitShort}.`,
+            fuzzTestStatus: 'REMEDIATED',
+            fundsDrainedEth: 0,
           },
         });
 

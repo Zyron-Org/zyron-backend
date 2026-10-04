@@ -261,11 +261,12 @@ export class Pass01AccessControl implements ScannerPass {
     const bodyStr = JSON.stringify(node.body);
 
     const hasRequireCheck =
-      bodyStr.includes('require') &&
-      (bodyStr.includes('!initialized') ||
-        bodyStr.includes('!_initialized') ||
-        bodyStr.includes('initialized == false') ||
-        bodyStr.includes('not initialized'));
+      (bodyStr.includes('require') || bodyStr.includes('assert')) &&
+      (bodyStr.includes('initialized') ||
+        bodyStr.includes('_initialized') ||
+        bodyStr.includes('isInitialized') ||
+        bodyStr.includes('ALREADY_INITIALIZED') ||
+        bodyStr.includes('already initialized'));
 
     const hasRevertCheck =
       bodyStr.includes('revert') &&
