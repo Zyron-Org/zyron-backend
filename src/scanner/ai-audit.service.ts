@@ -2,6 +2,7 @@ import { Injectable, Logger, Optional, ServiceUnavailableException } from '@nest
 import { PrismaService } from '../database/database.module';
 import { AiProviderFactory, AiScanResult } from './ai-providers';
 import { FindingPersisterService } from './services/finding-persister.service';
+import { GithubService } from '../integrations/github.service';
 
 @Injectable()
 export class AiAuditService {
@@ -10,6 +11,7 @@ export class AiAuditService {
   constructor(
     private providerFactory: AiProviderFactory,
     private prisma: PrismaService,
+    @Optional() private githubService?: GithubService,
     @Optional() private findingPersister?: FindingPersisterService,
   ) {}
 
@@ -24,8 +26,48 @@ export class AiAuditService {
     staticFindings?: any[],
     protocolContext?: { protocolName?: string; businessGoals?: string },
     auditId?: string,
+    additionalFiles?: Map<string, string> | Record<string, string>,
   ): Promise<AiScanResult> {
     try {
+      let filesInScope = additionalFiles;
+
+      // If additionalFiles was not explicitly provided but an auditId is attached,
+      // dynamically fetch all contracts in the repository tree from GitHub so the LLM has multi-file scope.
+      if (!filesInScope && auditId && this.githubService) {
+        try {
+          const audit = await this.prisma.auditRequest.findUnique({
+            where: { id: auditId },
+          });
+          if (audit?.githubRepoUrl) {
+            const { owner, repo } = this.githubService.parseRepoUrl(audit.githubRepoUrl);
+            const branch = audit.gitCommit || audit.githubBranch || 'main';
+            this.logger.log(`[AiAuditService] Ingesting multi-file repository contracts for AI scope from ${owner}/${repo} (${branch})...`);
+            const tree = await this.githubService.fetchRepoTree(owner, repo, branch);
+            if (tree && tree.contracts?.length > 0) {
+              const fileMap = new Map<string, string>();
+              await Promise.all(
+                tree.contracts.map(async (filePath) => {
+                  try {
+                    const content = await this.githubService!.fetchFileContent(owner, repo, filePath, branch);
+                    if (content) {
+                      fileMap.set(filePath, content);
+                    }
+                  } catch (fetchErr: any) {
+                    this.logger.warn(`[AiAuditService] Failed to fetch repo file ${filePath}: ${fetchErr.message}`);
+                  }
+                }),
+              );
+              if (fileMap.size > 0) {
+                filesInScope = fileMap;
+                this.logger.log(`[AiAuditService] Ingested ${fileMap.size} contracts into multi-file AI review scope.`);
+              }
+            }
+          }
+        } catch (err: any) {
+          this.logger.warn(`[AiAuditService] Failed to ingest repo files for multi-file scope: ${err.message}`);
+        }
+      }
+
       const provider = this.providerFactory.getProvider(requestedModelOrProvider);
       const result = await provider.analyzeContract(
         contractFileName,
@@ -33,6 +75,7 @@ export class AiAuditService {
         staticFindings,
         protocolContext,
         requestedModelOrProvider,
+        filesInScope,
       );
 
       // Persist AI triage decisions (FP flags and novel findings) if auditId is present
@@ -71,6 +114,7 @@ export class AiAuditService {
     protocolContext?: { protocolName?: string; businessGoals?: string },
     requestedModelOrProvider?: string,
     auditId?: string,
+    additionalFiles?: Map<string, string> | Record<string, string>,
   ): Promise<AiScanResult> {
     return this.analyzeContractWithAi(
       contractFileName,
@@ -79,6 +123,7 @@ export class AiAuditService {
       staticFindings,
       protocolContext,
       auditId,
+      additionalFiles,
     );
   }
 

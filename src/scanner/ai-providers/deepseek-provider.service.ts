@@ -27,6 +27,7 @@ export class DeepSeekProviderService implements AiProvider {
     staticFindings?: any[],
     protocolContext?: { protocolName?: string; businessGoals?: string },
     modelOverride?: string,
+    additionalFiles?: Map<string, string> | Record<string, string>,
   ): Promise<AiScanResult> {
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
@@ -34,7 +35,13 @@ export class DeepSeekProviderService implements AiProvider {
     }
 
     const model = modelOverride || process.env.DEEPSEEK_MODEL || 'deepseek-chat';
-    const prompt = buildSecurityAuditPrompt(contractFileName, code, staticFindings, protocolContext);
+    const prompt = buildSecurityAuditPrompt(
+      contractFileName,
+      code,
+      staticFindings,
+      protocolContext,
+      additionalFiles,
+    );
 
     this.logger.log(`Invoking DeepSeek (${model}) for ${contractFileName}...`);
 

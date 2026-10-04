@@ -27,6 +27,7 @@ export class OpenAiProviderService implements AiProvider {
     staticFindings?: any[],
     protocolContext?: { protocolName?: string; businessGoals?: string },
     modelOverride?: string,
+    additionalFiles?: Map<string, string> | Record<string, string>,
   ): Promise<AiScanResult> {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -34,7 +35,13 @@ export class OpenAiProviderService implements AiProvider {
     }
 
     const model = modelOverride || process.env.OPENAI_MODEL || 'gpt-4o';
-    const prompt = buildSecurityAuditPrompt(contractFileName, code, staticFindings, protocolContext);
+    const prompt = buildSecurityAuditPrompt(
+      contractFileName,
+      code,
+      staticFindings,
+      protocolContext,
+      additionalFiles,
+    );
 
     this.logger.log(`Invoking OpenAI (${model}) for ${contractFileName}...`);
 

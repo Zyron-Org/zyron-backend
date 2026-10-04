@@ -3,6 +3,7 @@ export function buildSecurityAuditPrompt(
   code: string,
   staticFindings?: any[],
   protocolContext?: { protocolName?: string; businessGoals?: string },
+  additionalFiles?: Map<string, string> | Record<string, string>,
 ): string {
   const staticFindingsText =
     staticFindings && staticFindings.length > 0
@@ -19,6 +20,40 @@ export function buildSecurityAuditPrompt(
           2,
         )
       : 'No prior static findings provided.';
+
+  // Build multi-file repository section if additional files are provided
+  let multiFileSection = '';
+  if (additionalFiles) {
+    const entries: [string, string][] =
+      additionalFiles instanceof Map
+        ? Array.from(additionalFiles.entries())
+        : Object.entries(additionalFiles);
+
+    const otherFiles = entries.filter(([path]) => {
+      const basename = path.split('/').pop() || path;
+      return path !== contractFileName && basename !== contractFileName;
+    });
+
+    if (otherFiles.length > 0) {
+      multiFileSection = `
+===================================================================
+ADDITIONAL REPOSITORY FILES IN SCOPE (${otherFiles.length} files):
+===================================================================
+The primary target contract interacts with and imports the following repository files.
+Analyze cross-contract calls, interface definitions, inheritance trees, shared states, and token flows:
+
+${otherFiles
+  .map(
+    ([path, content]) => `--- File: ${path} ---
+\`\`\`solidity
+${content}
+\`\`\`
+`,
+  )
+  .join('\n')}
+`;
+    }
+  }
 
   return `
 You are Zyron AI, an elite institutional smart contract security auditor specializing in EVM Solidity, Vyper, and Rust/Move.
@@ -49,7 +84,7 @@ For each candidate static finding:
 ===================================================================
 TASK 2: INDEPENDENT ZERO-DAY & BUSINESS LOGIC SCAN
 ===================================================================
-In addition to reviewing the static candidates, independently inspect the entire contract code for novel, high-severity logic vulnerabilities that static AST rules miss:
+In addition to reviewing the static candidates, independently inspect the entire contract code (and cross-contract interactions across all repository files in scope) for novel, high-severity logic vulnerabilities that static AST rules miss:
 - Economic exploits (Flash loan spot price manipulation, sandwiching, un-smoothed oracle consumption).
 - ERC4626 / Vault share inflation attacks (first depositor donation attack).
 - Cross-function reentrancy and read-only reentrancy across dependent contracts.
@@ -64,11 +99,12 @@ For every novel finding you discover:
 - Detail root cause, impact, exploit scenario, and remediated code.
 
 ===================================================================
-Source Code:
+PRIMARY TARGET CONTRACT SOURCE CODE (${contractFileName}):
+===================================================================
 \`\`\`solidity
 ${code}
 \`\`\`
-
+${multiFileSection}
 Return a valid JSON object strictly matching this schema:
 {
   "analysisSummary": "Executive summary of findings, false positive triage, and novel logic review",

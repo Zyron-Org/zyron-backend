@@ -22,11 +22,23 @@ export class LegacyScanRunnerService {
     private aiAuditService: AiAuditService,
   ) {}
 
-  async run(contractFileName: string, code: string): Promise<LegacyFinding[]> {
+  async run(
+    contractFileName: string,
+    code: string,
+    additionalFiles?: Map<string, string>,
+  ): Promise<LegacyFinding[]> {
     this.logger.log(`Running legacy scanners on ${contractFileName}`);
     const tokenResult = this.tokenScanner.analyzeTokenCode(contractFileName, code);
     try {
-      const aiResult = await this.aiAuditService.analyzeContractWithAi(contractFileName, code);
+      const aiResult = await this.aiAuditService.analyzeContractWithAi(
+        contractFileName,
+        code,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        additionalFiles,
+      );
       return [...tokenResult.findings, ...aiResult.findings];
     } catch (err: any) {
       this.logger.warn(`AI analysis skipped in legacy runner: ${err.message}`);

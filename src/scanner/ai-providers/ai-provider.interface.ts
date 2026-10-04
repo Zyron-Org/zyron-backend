@@ -38,5 +38,6 @@ export interface AiProvider {
     staticFindings?: any[],
     protocolContext?: { protocolName?: string; businessGoals?: string },
     modelOverride?: string,
+    additionalFiles?: Map<string, string> | Record<string, string>,
   ): Promise<AiScanResult>;
 }

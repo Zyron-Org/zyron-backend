@@ -27,6 +27,7 @@ export class GeminiProviderService implements AiProvider {
     staticFindings?: any[],
     protocolContext?: { protocolName?: string; businessGoals?: string },
     modelOverride?: string,
+    additionalFiles?: Map<string, string> | Record<string, string>,
   ): Promise<AiScanResult> {
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
     if (!apiKey) {
@@ -34,7 +35,13 @@ export class GeminiProviderService implements AiProvider {
     }
 
     const model = modelOverride || process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-    const prompt = buildSecurityAuditPrompt(contractFileName, code, staticFindings, protocolContext);
+    const prompt = buildSecurityAuditPrompt(
+      contractFileName,
+      code,
+      staticFindings,
+      protocolContext,
+      additionalFiles,
+    );
 
     this.logger.log(`Invoking Google Gemini (${model}) for ${contractFileName}...`);
 

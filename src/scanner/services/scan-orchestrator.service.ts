@@ -151,7 +151,7 @@ export class ScanOrchestratorService {
       }
     } catch (err: any) {
       this.logger.warn(`[AST Engine] Execution failed (${err.message}). Falling back to legacy regex scanner.`);
-      const legacyFindings = await this.legacyRunner.run(audit.contractFileName, sourceCode);
+      const legacyFindings = await this.legacyRunner.run(audit.contractFileName, sourceCode, virtualFiles);
       legacyCount = await this.findingPersister.persistLegacyFindings(auditId, existingCount, legacyFindings);
       astResult = {
         diagnostics: [{ code: 'AST_FALLBACK', message: err.message, severity: 'WARNING' }],

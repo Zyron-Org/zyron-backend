@@ -27,6 +27,7 @@ export class AnthropicProviderService implements AiProvider {
     staticFindings?: any[],
     protocolContext?: { protocolName?: string; businessGoals?: string },
     modelOverride?: string,
+    additionalFiles?: Map<string, string> | Record<string, string>,
   ): Promise<AiScanResult> {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
@@ -34,7 +35,13 @@ export class AnthropicProviderService implements AiProvider {
     }
 
     const model = modelOverride || process.env.ANTHROPIC_MODEL || 'claude-3-7-sonnet-20250219';
-    const rawPrompt = buildSecurityAuditPrompt(contractFileName, code, staticFindings, protocolContext);
+    const rawPrompt = buildSecurityAuditPrompt(
+      contractFileName,
+      code,
+      staticFindings,
+      protocolContext,
+      additionalFiles,
+    );
 
     this.logger.log(`Invoking Anthropic Claude (${model}) for ${contractFileName}...`);
 
