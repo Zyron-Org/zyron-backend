@@ -44,6 +44,7 @@ export interface VerificationResult {
       reportUrl: string;
       onChainTxHash?: string | null;
       onChainChainId?: number | null;
+      attestationSig?: string | null;
     };
     summary: {
       totalFindings: number;
@@ -360,6 +361,7 @@ export class AuditVerificationService {
           reportUrl,
           onChainTxHash: audit.onChainTxHash,
           onChainChainId: audit.onChainChainId,
+          attestationSig: audit.attestationSig,
         },
         summary: {
           totalFindings: findings.length,

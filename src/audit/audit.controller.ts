@@ -162,6 +162,36 @@ export class AuditController {
   ) {
     return this.auditService.findFindingsByAudit(auditId, user.role);
   }
+
+  @Get(':id/attestation/payload')
+  @Roles(UserRole.AUDITOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get EIP-712 typed data payload for auditor wallet signing' })
+  async getAttestationPayload(@Param('id') id: string) {
+    return this.auditService.getAttestationPayload(id);
+  }
+
+  @Post(':id/attestation/sign')
+  @Roles(UserRole.AUDITOR, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Submit auditor EIP-712 cryptographic signature to seal attestation and broadcast on-chain' })
+  async signAndCompleteAttestation(
+    @Param('id') id: string,
+    @Body() body: { signature: string; signerAddress: string; payloadMessage?: any; chainId?: number },
+  ) {
+    return this.auditService.signAndCompleteAttestation(
+      id,
+      body.signature,
+      body.signerAddress,
+      body.payloadMessage,
+      body.chainId,
+    );
+  }
+
+  @Get(':id/attestation/onchain')
+  @Public()
+  @ApiOperation({ summary: 'Direct live on-chain query to verify attestation record from ZyronAttestation smart contract' })
+  async verifyOnChain(@Param('id') id: string, @Query('chainId') chainId?: number) {
+    return this.auditService.verifyOnChain(id, chainId ? Number(chainId) : undefined);
+  }
 }
 
 @ApiTags('Vulnerability Findings')

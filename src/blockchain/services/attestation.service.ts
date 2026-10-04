@@ -1,5 +1,6 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/database.module';
+import { ChainConfigService } from './chain-config.service';
 import { createHash } from 'crypto';
 import { keccak256, toUtf8Bytes } from 'ethers';
 
@@ -7,7 +8,10 @@ import { keccak256, toUtf8Bytes } from 'ethers';
 export class AttestationService {
   private readonly logger = new Logger(AttestationService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private chainConfig: ChainConfigService,
+  ) {}
 
   /**
    * Compute Merkle root from an ordered list of finding display IDs + severities.
@@ -35,7 +39,6 @@ export class AttestationService {
 
   /**
    * Build the EIP-712 typed data payload for auditor signing.
-   * Only callable when attestationStatus === 'AUTOMATED_ONLY'.
    */
   async buildAttestationPayload(auditId: string) {
     const audit = await this.prisma.auditRequest.findUnique({
@@ -44,13 +47,22 @@ export class AttestationService {
     });
 
     if (!audit) throw new BadRequestException(`Audit ${auditId} not found`);
-    if (audit.attestationStatus !== 'AUTOMATED_ONLY') {
-      throw new BadRequestException(`Audit ${auditId} is already attested or revoked`);
+    if (audit.attestationStatus === 'REVOKED') {
+      throw new BadRequestException(`Audit ${auditId} has been revoked and cannot be signed.`);
     }
 
+    const targetChainId = audit.onChainChainId || Number(process.env.DEFAULT_ATTESTATION_CHAIN_ID || 421614);
+    const config = this.chainConfig.getChainConfig(targetChainId);
+    const verifyingContract = config?.attestationAddress || '0x7682b6ddc20ce79b1cc4c30647f0384e7f2ab918';
+
+    const nonFpFindings = audit.findings.filter((f) => !f.falsePositive);
     const merkleRoot = this.computeFindingsMerkleRoot(
-      audit.findings.map((f) => ({ displayId: f.displayId, severity: f.severity })),
+      nonFpFindings.map((f) => ({ displayId: f.displayId, severity: f.severity })),
     );
+
+    const bytecodeHash = audit.bytecodeHash || `0x${createHash('sha256').update(`${audit.protocolName}:${audit.contractFileName}:${audit.gitCommit || ''}:${audit.id}`).digest('hex')}`;
+    const sourceHash = audit.sourceHash || `0x${'0'.repeat(64)}`;
+    const timestamp = Math.floor(Date.now() / 1000);
 
     const payload = {
       types: {
@@ -58,6 +70,7 @@ export class AttestationService {
           { name: 'name', type: 'string' },
           { name: 'version', type: 'string' },
           { name: 'chainId', type: 'uint256' },
+          { name: 'verifyingContract', type: 'address' },
         ],
         AttestationPayload: [
           { name: 'auditId', type: 'bytes32' },
@@ -71,20 +84,33 @@ export class AttestationService {
         ],
       },
       primaryType: 'AttestationPayload',
-      domain: { name: 'ZyronAttestation', version: '3.0.0', chainId: audit.onChainChainId || 1 },
+      domain: {
+        name: 'ZyronAttestation',
+        version: '3.0.0',
+        chainId: targetChainId,
+        verifyingContract,
+      },
       message: {
         auditId: this.toBytes32(auditId),
         merkleRoot,
-        bytecodeHash: audit.bytecodeHash || '0x' + '0'.repeat(64),
-        sourceHash: '0x' + '0'.repeat(64),
-        leadAuditor: audit.leadAuditor?.walletAddress || '0x' + '0'.repeat(40),
-        sloc: audit.sloc,
-        status: 2, // MANUALLY_ATTESTED enum value
-        timestamp: Math.floor(Date.now() / 1000),
+        bytecodeHash,
+        sourceHash,
+        leadAuditor: audit.leadAuditor?.walletAddress || '0x0000000000000000000000000000000000000000',
+        sloc: audit.sloc || 100,
+        status: 2, // MANUALLY_ATTESTED
+        timestamp,
       },
     };
 
-    return { payload, merkleRoot };
+    return {
+      payload,
+      merkleRoot,
+      targetChainId,
+      verifyingContract,
+      auditId,
+      protocolName: audit.protocolName,
+      contractFileName: audit.contractFileName,
+    };
   }
 
   private toBytes32(value: string): string {

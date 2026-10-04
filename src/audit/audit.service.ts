@@ -4,6 +4,7 @@ import { AuditStage, UserRole } from '../common/enum';
 import { PrismaService } from '../database/database.module';
 import { IpfsService } from '../ipfs/ipfs.service';
 import { ScannerService } from '../scanner/scanner.service';
+import { BlockchainService } from '../blockchain/blockchain.service';
 import {
   CreateAuditService,
   GetAuditsService,
@@ -31,6 +32,7 @@ export class AuditService {
     private commentsService: CommentsService,
     private autoAssignService: AutoAssignService,
     private auditVerificationService: AuditVerificationService,
+    private blockchainService: BlockchainService,
     @Inject(forwardRef(() => ScannerService))
     private scannerService: ScannerService,
   ) {}
@@ -203,6 +205,41 @@ export class AuditService {
 
     if (!audit) throw new NotFoundException(`Audit ${auditId} not found`);
     return audit;
+  }
+
+  getAttestationPayload(auditId: string) {
+    return this.blockchainService.buildAttestationPayload(auditId);
+  }
+
+  async signAndCompleteAttestation(
+    auditId: string,
+    signature: string,
+    signerAddress: string,
+    payloadMessage?: any,
+    targetChainId?: number,
+  ) {
+    // 1. Advance stage to COMPLETED (handles 0 open crit/high check, PDF generation, IPFS pinning)
+    const completedAudit = await this.advanceStageService.advanceStage(auditId, {
+      stage: AuditStage.COMPLETED,
+    });
+
+    // 2. Submit signed on-chain attestation via relayer to ZyronAttestation.sol
+    const onChainRes = await this.blockchainService.submitSignedAttestation(
+      auditId,
+      signature,
+      signerAddress,
+      payloadMessage,
+      targetChainId,
+    );
+
+    return {
+      audit: completedAudit,
+      onChain: onChainRes,
+    };
+  }
+
+  verifyOnChain(auditId: string, targetChainId?: number) {
+    return this.blockchainService.verifyOnChain(auditId, targetChainId);
   }
 }
 

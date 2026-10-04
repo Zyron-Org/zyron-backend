@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { BlockchainService } from './blockchain.service';
+import { BlockchainController } from './blockchain.controller';
 import {
   ChainConfigService,
   TransactionVerifierService,
@@ -11,6 +12,7 @@ import {
 
 @Global()
 @Module({
+  controllers: [BlockchainController],
   providers: [
     BlockchainService,
     ChainConfigService,

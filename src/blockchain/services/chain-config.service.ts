@@ -31,8 +31,8 @@ export class ChainConfigService {
       name: 'Arbitrum Sepolia',
       rpcUrl: process.env.ARBITRUM_SEPOLIA_RPC_URL || 'https://sepolia-rollup.arbitrum.io/rpc',
       explorerUrl: 'https://sepolia.arbiscan.io',
-      escrowAddress: process.env.ARBITRUM_SEPOLIA_ESCROW_ADDRESS || '',
-      attestationAddress: process.env.ARBITRUM_SEPOLIA_ATTESTATION_ADDRESS || '',
+      escrowAddress: process.env.ARBITRUM_SEPOLIA_ESCROW_ADDRESS || process.env.ESCROW_CONTRACT_ADDRESS || '0xd37269d1a023af210a191281f9a22d49f22f41d7',
+      attestationAddress: process.env.ARBITRUM_SEPOLIA_ATTESTATION_ADDRESS || process.env.ATTESTATION_CONTRACT_ADDRESS || '0x7682b6ddc20ce79b1cc4c30647f0384e7f2ab918',
       nativeUsdcAddress: '',
     }],
     [8453, {
@@ -67,8 +67,8 @@ export class ChainConfigService {
       name: 'Ethereum Sepolia',
       rpcUrl: process.env.ETHEREUM_SEPOLIA_RPC_URL || 'https://rpc.sepolia.org',
       explorerUrl: 'https://sepolia.etherscan.io',
-      escrowAddress: process.env.ETHEREUM_SEPOLIA_ESCROW_ADDRESS || '',
-      attestationAddress: process.env.ETHEREUM_SEPOLIA_ATTESTATION_ADDRESS || '',
+      escrowAddress: process.env.ETHEREUM_SEPOLIA_ESCROW_ADDRESS || '0xd37269d1a023af210a191281f9a22d49f22f41d7',
+      attestationAddress: process.env.ETHEREUM_SEPOLIA_ATTESTATION_ADDRESS || '0x7682b6ddc20ce79b1cc4c30647f0384e7f2ab918',
       nativeUsdcAddress: '',
     }],
   ]);
