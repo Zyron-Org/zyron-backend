@@ -178,7 +178,7 @@ export class AuditController {
   @ApiOperation({ summary: 'Submit auditor EIP-712 cryptographic signature to seal attestation and broadcast on-chain' })
   async signAndCompleteAttestation(
     @Param('id') id: string,
-    @Body() body: { signature: string; signerAddress: string; txHash?: string; payloadMessage?: any; chainId?: number },
+    @Body() body: { signature: string; signerAddress: string; txHash?: string; contractAddress?: string; payloadMessage?: any; chainId?: number },
   ) {
     return this.auditService.signAndCompleteAttestation(
       id,
@@ -187,6 +187,7 @@ export class AuditController {
       body.payloadMessage,
       body.chainId,
       body.txHash,
+      body.contractAddress,
     );
   }
 

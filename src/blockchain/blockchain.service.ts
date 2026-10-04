@@ -84,4 +84,8 @@ export class BlockchainService {
   revokeAttestation(auditId: string, reason: string) {
     return this.attestationConfirmer.revokeAttestation(auditId, reason);
   }
+
+  setAttestationAddress(chainId: number, address: string) {
+    this.chainConfig.setAttestationAddress(chainId, address);
+  }
 }

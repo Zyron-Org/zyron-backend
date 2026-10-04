@@ -91,4 +91,12 @@ export class ChainConfigService {
     this.logger.log(`Connected to ${config.name} (Chain ID: ${chainId})`);
     return provider;
   }
+
+  setAttestationAddress(chainId: number, address: string) {
+    const config = this.chains.get(chainId);
+    if (config) {
+      config.attestationAddress = address;
+      this.logger.log(`Updated attestation address for chain ${chainId} to ${address}`);
+    }
+  }
 }

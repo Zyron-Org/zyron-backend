@@ -218,7 +218,14 @@ export class AuditService {
     payloadMessage?: any,
     targetChainId?: number,
     txHash?: string,
+    contractAddress?: string,
   ) {
+    const chainId = targetChainId || Number(process.env.DEFAULT_ATTESTATION_CHAIN_ID || 421614);
+
+    if (contractAddress && contractAddress.startsWith('0x') && contractAddress.length === 42) {
+      this.blockchainService.setAttestationAddress(chainId, contractAddress);
+    }
+
     // 1. Advance stage to COMPLETED (handles 0 open crit/high check, PDF generation, IPFS pinning)
     const completedAudit = await this.advanceStageService.advanceStage(auditId, {
       stage: AuditStage.COMPLETED,
@@ -227,7 +234,6 @@ export class AuditService {
     // 2. If client already broadcast the on-chain tx directly via Web3 wallet:
     let onChainRes: any;
     if (txHash && txHash.startsWith('0x')) {
-      const chainId = targetChainId || Number(process.env.DEFAULT_ATTESTATION_CHAIN_ID || 421614);
       await this.prisma.auditRequest.update({
         where: { id: auditId },
         data: {
