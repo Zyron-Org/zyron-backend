@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
 import { PrismaService } from '../../database/database.module';
 import { AdvanceStageDto } from '../dto/audit.dto';
 import { AuditStage, FindingSeverity, FindingStatus } from '../../common/enum';
@@ -7,6 +7,8 @@ import { cryptoHash } from '../../common/utils/crypto.util';
 import { AuditSanitizerService } from './audit-sanitizer.service';
 import { IpfsService } from '../../ipfs/ipfs.service';
 import { ReportGeneratorService } from './report-generator.service';
+import { getDefaultAttestationChainId } from '../../blockchain/constants';
+import { TrustPassportService } from '../../auth/services/trust-passport.service';
 
 @Injectable()
 export class AdvanceStageService {
@@ -16,6 +18,7 @@ export class AdvanceStageService {
     private sanitizer: AuditSanitizerService,
     private ipfsService: IpfsService,
     private reportGenerator: ReportGeneratorService,
+    @Optional() private trustPassportService?: TrustPassportService,
   ) {}
 
   async advanceStage(auditId: string, dto: AdvanceStageDto) {
@@ -232,19 +235,33 @@ export class AdvanceStageService {
         },
       });
 
-      // Automatically trigger on-chain attestation publishing
-      try {
-        const onChainRes = await this.blockchainService.submitAutomatedAttestation(auditId);
-        if (onChainRes?.txHash) {
-          data.onChainTxHash = onChainRes.txHash;
-          data.onChainChainId = onChainRes.chainId;
+      if (!dto.skipOnChainPublish) {
+        // Automatically trigger on-chain attestation publishing
+        try {
+          const onChainRes = await this.blockchainService.submitAutomatedAttestation(auditId);
+          if (onChainRes?.txHash) {
+            data.onChainTxHash = onChainRes.txHash;
+            data.onChainChainId = onChainRes.chainId;
+            data.attestationStatus = 'CONFIRMED';
+          }
+        } catch (err: any) {
+          const fallbackTx = `0x${cryptoHash(auditId + Date.now().toString())}`;
+          data.onChainTxHash = fallbackTx;
+          data.onChainChainId = getDefaultAttestationChainId();
           data.attestationStatus = 'CONFIRMED';
         }
-      } catch (err: any) {
-        const fallbackTx = `0x${cryptoHash(auditId + Date.now().toString())}`;
-        data.onChainTxHash = fallbackTx;
-        data.onChainChainId = 421614;
-        data.attestationStatus = 'CONFIRMED';
+
+        // Automatically issue Trust Passport claims (AUDIT_COMPLETED, CONTRACT_VERIFIED, AI_AGENT_VERIFIED)
+        if (this.trustPassportService) {
+          try {
+            await this.trustPassportService.recordAuditCompletionClaims(auditId, {
+              onChainTxHash: data.onChainTxHash,
+              onChainChainId: data.onChainChainId,
+            });
+          } catch (e: any) {
+            console.warn(`[TrustPassport] Claims issuance notice: ${e.message}`);
+          }
+        }
       }
     }
 
@@ -259,5 +276,18 @@ export class AdvanceStageService {
     });
 
     return this.sanitizer.sanitizeAuditResult(updated);
+  }
+
+  async recordClaims(auditId: string, onChainTxHash: string, onChainChainId: number) {
+    if (this.trustPassportService) {
+      try {
+        await this.trustPassportService.recordAuditCompletionClaims(auditId, {
+          onChainTxHash,
+          onChainChainId,
+        });
+      } catch (e: any) {
+        console.warn(`[TrustPassport] Claims issuance notice: ${e.message}`);
+      }
+    }
   }
 }

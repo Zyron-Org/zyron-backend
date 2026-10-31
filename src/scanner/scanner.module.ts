@@ -21,6 +21,7 @@ import {
   AgentProverClientService,
 } from './services';
 import {
+  MetaProviderService,
   GeminiProviderService,
   AnthropicProviderService,
   OpenAiProviderService,
@@ -38,6 +39,7 @@ import {
     ScannerGateway,
     TokenRuleScannerService,
     AiGeminiClientService,
+    MetaProviderService,
     GeminiProviderService,
     AnthropicProviderService,
     OpenAiProviderService,
@@ -57,6 +59,7 @@ import {
     AiAuditService,
     ScannerGateway,
     TokenRuleScannerService,
+    MetaProviderService,
     GeminiProviderService,
     AnthropicProviderService,
     OpenAiProviderService,

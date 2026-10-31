@@ -33,10 +33,14 @@ model User {
   githubAccessToken String?             // OAuth token for private repo access (store encrypted in prod)
   githubAvatarUrl   String?             // GitHub avatar URL
 
+  // Privy Integration
+  privyDid          String?   @unique  // Privy Decentralized Identifier (did:privy:...)
+
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
   // Relations
+  passport        TrustPassport?
   submittedAudits AuditRequest[] @relation("SubmittedBy")
   leadAudits      AuditRequest[] @relation("LeadAuditor")
   peerAudits      AuditRequest[] @relation("PeerAuditor")
@@ -168,6 +172,9 @@ model AuditRequest {
   scanRuns ScanRun[]
   payment  Payment?
   comments Comment[]
+  trustClaims TrustClaim[]
+  proverEvidences ProverEvidence[]
+  chainAttestations ChainAttestation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -304,4 +311,107 @@ model Payment {
   status        String       @default("PENDING") // PENDING, ESCROWED, PARTIALLY_RELEASED, FULLY_RELEASED, REFUNDED
   paidAt        DateTime?
   createdAt     DateTime     @default(now())
+}
+
+// ─── TRUST PASSPORT & CLAIMS ─────────────────────────────
+
+model TrustPassport {
+  id              String       @id @default(cuid())
+  userId          String       @unique
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  handle          String?      @unique
+  title           String?      @default("Zyron Trust Passport")
+  bio             String?
+  reputationScore Int          @default(100)
+  isVerified      Boolean      @default(false)
+  claims          TrustClaim[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([userId])
+}
+
+model TrustClaim {
+  id               String         @id @default(cuid())
+  passportId       String
+  passport         TrustPassport  @relation(fields: [passportId], references: [id], onDelete: Cascade)
+  claimType        String         // DEVELOPER_VERIFIED, GITHUB_VERIFIED, AI_AGENT_VERIFIED, AUDIT_COMPLETED, CONTRACT_VERIFIED, SECURITY_FINDING, HUMAN_REVIEWED, CONTENT_VERIFIED
+  subject          String         // e.g. wallet address, github username, auditId, contract address
+  issuer           String         // e.g. "ZYRON_AI_AUDITOR_001", "ZYRON_SYSTEM", auditor wallet address
+  evidence         String         // JSON string containing verification data, metadata, or findings Merkle root
+  evidenceHash     String         // Deterministic SHA-256 hash of canonical evidence
+  status           String         @default("VERIFIED") // PENDING, VERIFIED, REVOKED
+  onChainTxHash    String?        // Monad transaction hash
+  onChainChainId   Int?           @default(10143)
+  onChainTokenId   Int?           // Soulbound token ID
+  auditId          String?        // Link to AuditRequest if applicable
+  audit            AuditRequest?  @relation(fields: [auditId], references: [id])
+  issuedAt         DateTime       @default(now())
+  revokedAt        DateTime?
+
+  @@index([passportId])
+  @@index([claimType])
+  @@index([evidenceHash])
+  @@index([auditId])
+}
+
+// ─── CRYPTOGRAPHIC PROVER EVIDENCE & MULTICHAIN ATTESTATIONS ───
+
+model ProverEvidence {
+  id                   String       @id @default(cuid())
+  auditId              String
+  audit                AuditRequest @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  findingId            String
+  findingDisplayId     String?
+  schemaVersion        String       @default("zyron.evidence/v1")
+  verifierVersion      String       @default("zyron-verifier/2.0.0")
+  finalStatus          String       // PROVEN_EXPLOIT, PROVEN_FALSE_POSITIVE, INCONCLUSIVE
+  claimedVerdict       String?
+  testFile             String?
+  testFunction         String?
+  testArtifactHash     String?
+  sourceHashesJson     String       // Canonical JSON map of file -> SHA256
+  provider             String       @default("meta")
+  model                String       @default("muse-spark-1.3")
+  runsJson             String       // JSON array of reproducible sandbox runs
+  investigationJson    String?      // Auditable InvestigationStep[] (tool calls, args, outputs, no CoT)
+  canonicalJson        String       // Canonical zyron.evidence/v1 JSON
+  evidenceHash         String       // 0x-prefixed SHA-256 of canonicalJson
+  rejectionReasonsJson String?
+  createdAt            DateTime     @default(now())
+
+  @@unique([auditId, findingId])
+  @@index([auditId])
+  @@index([evidenceHash])
+}
+
+model ChainAttestation {
+  id                    String       @id @default(cuid())
+  auditId               String
+  audit                 AuditRequest @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  chainId               Int
+  chainName             String
+  contractIdentity      String       // "${chainId}:${address.toLowerCase()}"
+  targetContractAddress String?
+  registryAddress       String
+  bytecodeHash          String
+  evidenceRoot          String
+  merkleRoot            String
+  repoTreeHash          String
+  status                String       @default("PREPARED") // PREPARED, APPROVED, SUBMITTED, CONFIRMED, FAILED, REVOKED
+  preparedPayloadJson   String
+  preparedAt            DateTime     @default(now())
+  signerAddress         String?
+  signature             String?
+  approvedAt            DateTime?
+  txHash                String?
+  blockNumber           Int?
+  explorerUrl           String?
+  errorReason           String?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  @@unique([auditId, chainId])
+  @@index([chainId, contractIdentity])
+  @@index([evidenceRoot])
 }

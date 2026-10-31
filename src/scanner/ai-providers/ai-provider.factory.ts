@@ -1,5 +1,6 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { AiProvider } from './ai-provider.interface';
+import { MetaProviderService } from './meta-provider.service';
 import { GeminiProviderService } from './gemini-provider.service';
 import { AnthropicProviderService } from './anthropic-provider.service';
 import { OpenAiProviderService } from './openai-provider.service';
@@ -15,7 +16,11 @@ export class AiProviderFactory {
     private anthropic: AnthropicProviderService,
     private openai: OpenAiProviderService,
     private deepseek: DeepSeekProviderService,
+    @Optional() private meta?: MetaProviderService,
   ) {
+    if (meta) {
+      this.providers.set(meta.id, meta);
+    }
     this.providers.set(gemini.id, gemini);
     this.providers.set(anthropic.id, anthropic);
     this.providers.set(openai.id, openai);
@@ -23,7 +28,8 @@ export class AiProviderFactory {
   }
 
   getProvider(preferredId?: string): AiProvider {
-    const targetId = (preferredId || process.env.AI_PROVIDER || 'gemini').toLowerCase().trim();
+    const defaultProvider = process.env.MODEL_API_KEY?.trim() ? 'meta' : 'gemini';
+    const targetId = (preferredId || process.env.AI_PROVIDER || defaultProvider).toLowerCase().trim();
     const provider = this.providers.get(targetId);
 
     if (provider && provider.isAvailable()) {

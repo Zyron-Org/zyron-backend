@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ScannerService } from '../src/scanner/scanner.service';
 import { TokenScannerService } from '../src/scanner/token-scanner.service';
-import { ScanOrchestratorService } from '../src/scanner/services/scan-orchestrator.service';
+import { ScanOrchestratorService, AgentProverClientService } from '../src/scanner/services';
 import { TokenRuleScannerService } from '../src/scanner/services/token-rule-scanner.service';
 import { AiProviderFactory } from '../src/scanner/ai-providers';
 import { AiGeminiClientService } from '../src/scanner/services/ai-gemini-client.service';
@@ -88,9 +88,15 @@ describe('ScannerService & TokenScannerService (Unit Tests)', () => {
         mockPrisma.scanJob.update({ where: { id: 'job_123' }, data: { status: 'completed' } });
         return Promise.resolve({ scanJob: { id: 'job_123', status: 'completed' }, findingsCount: 1 });
       }),
-      processGithubBotMention: vi.fn().mockImplementation(() => {
-        mockGithubService.postCommentToIssue('auraprotocol', 'aura-contracts', 42, 'Zyron AI Security Bot findings report');
-        return Promise.resolve({ triggered: true, processed: true });
+      processGithubBotMention: vi.fn().mockImplementation((payload: any) => {
+        const owner = payload?.repository?.owner?.login || 'auraprotocol';
+        const repo = payload?.repository?.name || 'aura-contracts';
+        const issue = payload?.issue?.number || 42;
+        if (/@zyron[-_]?bot\b/i.test(payload?.comment?.body || '')) {
+          mockGithubService.postCommentToIssue(owner, repo, issue, 'Zyron AI Security Bot findings report');
+          return Promise.resolve({ triggered: true, processed: true });
+        }
+        return Promise.resolve({ triggered: false, reason: 'No bot mention in comment' });
       }),
     };
 
@@ -103,6 +109,7 @@ describe('ScannerService & TokenScannerService (Unit Tests)', () => {
         { provide: AiProviderFactory, useValue: { getProvider: vi.fn(), getSupportedProviders: vi.fn() } },
         AiGeminiClientService,
         { provide: ScanOrchestratorService, useValue: mockOrchestrator },
+        { provide: AgentProverClientService, useValue: { proveAuditFindings: vi.fn(), handleProverCallback: vi.fn() } },
         { provide: PrismaService, useValue: mockPrisma },
         { provide: GithubService, useValue: mockGithubService },
       ],
@@ -189,6 +196,33 @@ describe('ScannerService & TokenScannerService (Unit Tests)', () => {
         'auraprotocol',
         'aura-contracts',
         42,
+        expect.stringMatching(/Zyron AI Security Bot/i),
+      );
+    });
+
+    it('should handle @zyron_bot mention with underscore and trigger audit', async () => {
+      const webhookPayload = {
+        action: 'created',
+        issue: { number: 88 },
+        comment: {
+          id: 1001,
+          body: '@zyron_bot audit check reentrancy in StakingPool.sol',
+          user: { login: 'dev-crypto' },
+        },
+        repository: {
+          html_url: 'https://github.com/monad-defi/staking',
+          name: 'staking',
+          owner: { login: 'monad-defi' },
+        },
+      };
+
+      const result = await scannerService.processGithubBotMention(webhookPayload);
+
+      expect(result.triggered).toBe(true);
+      expect(mockGithubService.postCommentToIssue).toHaveBeenCalledWith(
+        'monad-defi',
+        'staking',
+        88,
         expect.stringMatching(/Zyron AI Security Bot/i),
       );
     });

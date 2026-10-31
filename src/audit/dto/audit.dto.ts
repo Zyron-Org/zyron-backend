@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, IsInt, Min, IsEnum, IsObject } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsInt, Min, IsEnum, IsObject, IsBoolean } from 'class-validator';
 import { AuditStage, FindingSeverity, FindingStatus } from '../../common/enum';
 
 export class CreateAuditDto {
@@ -73,6 +73,11 @@ export class AdvanceStageDto {
   @IsOptional()
   @IsString()
   gitCommit?: string;
+
+  @ApiPropertyOptional({ example: false, description: 'Skip automatic background publishing if custom signing is in progress' })
+  @IsOptional()
+  @IsBoolean()
+  skipOnChainPublish?: boolean;
 }
 
 export class CreateFindingDto {

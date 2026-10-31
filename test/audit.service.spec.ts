@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuditService } from '../src/audit/audit.service';
+import { ScannerService } from '../src/scanner/scanner.service';
 import { CreateAuditService } from '../src/audit/services/create-audit.service';
 import { GetAuditsService } from '../src/audit/services/get-audits.service';
 import { ClaimTicketService } from '../src/audit/services/claim-ticket.service';
@@ -8,6 +9,8 @@ import { AdvanceStageService } from '../src/audit/services/advance-stage.service
 import { FindingsService } from '../src/audit/services/findings.service';
 import { CommentsService } from '../src/audit/services/comments.service';
 import { AuditSanitizerService } from '../src/audit/services/audit-sanitizer.service';
+import { IpfsService } from '../src/ipfs/ipfs.service';
+import { ReportGeneratorService } from '../src/audit/services/report-generator.service';
 import { PrismaService } from '../src/database/database.module';
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { AuditStage, UserRole, FindingSeverity, FindingStatus } from '../src/common/enum';
@@ -15,6 +18,7 @@ import { BlockchainService } from '../src/blockchain/blockchain.service';
 import { ScanOrchestratorService } from '../src/scanner/services/scan-orchestrator.service';
 
 import { AutoAssignService } from '../src/audit/services/auto-assign.service';
+import { AuditVerificationService } from '../src/audit/services/audit-verification.service';
 import { GithubService } from '../src/integrations/github.service';
 
 describe('AuditService (Unit Tests)', () => {
@@ -89,6 +93,16 @@ describe('AuditService (Unit Tests)', () => {
       parseRepoUrl: vi.fn().mockReturnValue({ owner: 'aura-finance', repo: 'core-vaults' }),
     };
 
+    const mockIpfsService = {
+      pinBuffer: vi.fn().mockResolvedValue({ cid: 'bafypdf', ipfsUrl: 'ipfs://bafypdf', gatewayUrl: 'https://ipfs.io/ipfs/bafypdf', size: 2400000 }),
+      pinJson: vi.fn().mockResolvedValue({ cid: 'bafymeta' }),
+      getLocalFile: vi.fn().mockReturnValue(null),
+    };
+
+    const mockReportGenerator = {
+      generateAuditReportPdf: vi.fn().mockResolvedValue(Buffer.from('PDF')),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuditService,
@@ -100,9 +114,13 @@ describe('AuditService (Unit Tests)', () => {
         CommentsService,
         AutoAssignService,
         AuditSanitizerService,
+        { provide: AuditVerificationService, useValue: { verify: vi.fn(), getRecentVerifications: vi.fn() } },
+        { provide: IpfsService, useValue: mockIpfsService },
+        { provide: ReportGeneratorService, useValue: mockReportGenerator },
         { provide: PrismaService, useValue: mockPrisma },
         { provide: BlockchainService, useValue: mockBlockchainService },
         { provide: ScanOrchestratorService, useValue: mockScanOrchestrator },
+        { provide: ScannerService, useValue: { runScan: vi.fn() } },
         { provide: GithubService, useValue: mockGithubService },
       ],
     }).compile();
@@ -158,9 +176,13 @@ describe('AuditService (Unit Tests)', () => {
           CommentsService,
           AutoAssignService,
           AuditSanitizerService,
+          { provide: AuditVerificationService, useValue: { verify: vi.fn(), getRecentVerifications: vi.fn() } },
+          { provide: IpfsService, useValue: { pinBuffer: vi.fn(), pinJson: vi.fn(), getLocalFile: vi.fn() } },
+          { provide: ReportGeneratorService, useValue: { generateAuditReportPdf: vi.fn() } },
           { provide: PrismaService, useValue: mockPrisma },
           { provide: BlockchainService, useValue: mockBlockchainService },
           { provide: ScanOrchestratorService, useValue: mockScanOrchestrator },
+          { provide: ScannerService, useValue: { runScan: vi.fn() } },
           {
             provide: GithubService,
             useValue: {

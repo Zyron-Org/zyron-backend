@@ -163,14 +163,66 @@ export class AuditController {
     return this.auditService.findFindingsByAudit(auditId, user.role);
   }
 
+  @Get(':id/evidence')
+  @Public()
+  @ApiOperation({ summary: 'Get canonical zyron.evidence/v1 bundle, investigation logs, and chain attestations for an audit' })
+  async getAuditEvidence(@Param('id') id: string) {
+    return this.auditService.getAuditEvidenceBundle(id);
+  }
+
+  @Get(':id/attestations')
+  @Public()
+  @ApiOperation({ summary: 'Get per-chain attestation records and supported chain adapter matrix for an audit' })
+  async getChainAttestations(@Param('id') id: string) {
+    return this.auditService.getChainAttestations(id);
+  }
+
+  @Post(':id/attestations/:chainId/prepare')
+  @Public()
+  @ApiOperation({ summary: 'Prepare chain-scoped EIP-712 attestation payload for Monad Testnet (10143) or Base Sepolia (84532)' })
+  async prepareChainAttestation(
+    @Param('id') id: string,
+    @Param('chainId') chainId: string,
+    @Body() body: { signerAddress?: string; targetContractAddress?: string },
+  ) {
+    return this.auditService.prepareChainAttestation(
+      id,
+      Number(chainId),
+      body?.signerAddress,
+      body?.targetContractAddress,
+    );
+  }
+
+  @Post(':id/attestations/:chainId/approve')
+  @Public()
+  @ApiOperation({ summary: 'Verify human reviewer EIP-712 signature and authorize chain attestation' })
+  async approveChainAttestation(
+    @Param('id') id: string,
+    @Param('chainId') chainId: string,
+    @Body() body: { signature: string; signerAddress: string },
+  ) {
+    return this.auditService.approveChainAttestation(id, Number(chainId), body.signature, body.signerAddress);
+  }
+
+  @Post(':id/attestations/:chainId/submit')
+  @Public()
+  @ApiOperation({ summary: 'Submit an approved chain attestation to the target blockchain via its ChainAdapter' })
+  async submitChainAttestation(
+    @Param('id') id: string,
+    @Param('chainId') chainId: string,
+  ) {
+    return this.auditService.submitApprovedChainAttestation(id, Number(chainId));
+  }
+
   @Get(':id/attestation/payload')
   @Public()
   @ApiOperation({ summary: 'Get EIP-712 typed data payload for auditor wallet signing' })
   async getAttestationPayload(
     @Param('id') id: string,
     @Query('signerAddress') signerAddress?: string,
+    @Query('chainId') chainId?: string,
   ) {
-    return this.auditService.getAttestationPayload(id, signerAddress);
+    return this.auditService.getAttestationPayload(id, signerAddress, chainId ? Number(chainId) : undefined);
   }
 
   @Post(':id/attestation/sign')

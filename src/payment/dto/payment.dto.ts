@@ -13,7 +13,7 @@ export class RecordEscrowDepositDto {
   @IsNotEmpty()
   escrowTxHash: string;
 
-  @ApiProperty({ example: 42161, description: 'Chain ID (e.g. 42161 for Arbitrum One, 1 for Ethereum)' })
+  @ApiProperty({ example: 10143, description: 'Chain ID (e.g. 10143 for Monad Testnet, 1 for Ethereum)' })
   @IsNumber()
   chainId: number;
 

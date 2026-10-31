@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import {
   ChainConfigService,
   TransactionVerifierService,
@@ -8,9 +8,12 @@ import {
   AttestationSubmitterService,
   ChainConfig,
 } from './services';
+import { ChainAdapterRegistry, ChainMatrixEntry } from './adapters';
 
 @Injectable()
 export class BlockchainService {
+  private readonly adapterRegistry: ChainAdapterRegistry;
+
   constructor(
     private chainConfig: ChainConfigService,
     private txVerifier: TransactionVerifierService,
@@ -18,7 +21,10 @@ export class BlockchainService {
     private attestation: AttestationService,
     private attestationConfirmer: AttestationConfirmerService,
     private attestationSubmitter: AttestationSubmitterService,
-  ) {}
+    @Optional() adapterRegistry?: ChainAdapterRegistry,
+  ) {
+    this.adapterRegistry = adapterRegistry || new ChainAdapterRegistry(this.chainConfig);
+  }
 
   getChainConfig(chainId: number): ChainConfig | undefined {
     return this.chainConfig.getChainConfig(chainId);
@@ -26,6 +32,14 @@ export class BlockchainService {
 
   getSupportedChains(): ChainConfig[] {
     return this.chainConfig.getSupportedChains();
+  }
+
+  getSupportedChainMatrix(): ChainMatrixEntry[] {
+    return this.adapterRegistry.getSupportedChainMatrix();
+  }
+
+  getAdapter(chainId: number) {
+    return this.adapterRegistry.getAdapter(chainId);
   }
 
   getProvider(chainId: number) {
@@ -45,8 +59,39 @@ export class BlockchainService {
   }
 
   // ─── Attestation Delegates ────────────────────────────
-  buildAttestationPayload(auditId: string, signerAddress?: string) {
-    return this.attestation.buildAttestationPayload(auditId, signerAddress);
+  buildAttestationPayload(auditId: string, signerAddress?: string, chainId?: number) {
+    return this.attestation.buildAttestationPayload(auditId, signerAddress, chainId);
+  }
+
+  prepareChainAttestation(
+    auditId: string,
+    chainId: number,
+    signerAddress?: string,
+    targetContractAddressOverride?: string,
+  ) {
+    return this.attestation.prepareChainAttestation(
+      auditId,
+      chainId,
+      signerAddress,
+      targetContractAddressOverride,
+    );
+  }
+
+  approveChainAttestation(params: {
+    auditId: string;
+    chainId: number;
+    signature: string;
+    signerAddress: string;
+  }) {
+    return this.attestation.approveChainAttestation(params);
+  }
+
+  submitApprovedChainAttestation(auditId: string, chainId: number) {
+    return this.attestationSubmitter.submitApprovedChainAttestation(auditId, chainId);
+  }
+
+  getAuditEvidenceBundle(auditId: string) {
+    return this.attestation.getAuditEvidenceBundle(auditId);
   }
 
   computeFindingsMerkleRoot(findings: { displayId: string; severity: string }[]) {

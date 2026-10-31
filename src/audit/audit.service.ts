@@ -5,6 +5,7 @@ import { PrismaService } from '../database/database.module';
 import { IpfsService } from '../ipfs/ipfs.service';
 import { ScannerService } from '../scanner/scanner.service';
 import { BlockchainService } from '../blockchain/blockchain.service';
+import { getDefaultAttestationChainId } from '../blockchain/constants';
 import {
   CreateAuditService,
   GetAuditsService,
@@ -207,8 +208,59 @@ export class AuditService {
     return audit;
   }
 
-  getAttestationPayload(auditId: string, signerAddress?: string) {
-    return this.blockchainService.buildAttestationPayload(auditId, signerAddress);
+  getAttestationPayload(auditId: string, signerAddress?: string, chainId?: number) {
+    return this.blockchainService.buildAttestationPayload(auditId, signerAddress, chainId);
+  }
+
+  async getAuditEvidenceBundle(auditId: string) {
+    return this.blockchainService.getAuditEvidenceBundle(auditId);
+  }
+
+  async getChainAttestations(auditId: string) {
+    const bundle = await this.blockchainService.getAuditEvidenceBundle(auditId);
+    const supportedChains = this.blockchainService.getSupportedChainMatrix();
+    return {
+      auditId: bundle.auditId,
+      evidenceRoot: bundle.evidenceRoot,
+      chainAttestations: bundle.chainAttestations,
+      supportedChains,
+    };
+  }
+
+  prepareChainAttestation(
+    auditId: string,
+    chainId: number,
+    signerAddress?: string,
+    targetContractAddress?: string,
+  ) {
+    return this.blockchainService.prepareChainAttestation(
+      auditId,
+      chainId,
+      signerAddress,
+      targetContractAddress,
+    );
+  }
+
+  approveChainAttestation(
+    auditId: string,
+    chainId: number,
+    signature: string,
+    signerAddress: string,
+  ) {
+    return this.blockchainService.approveChainAttestation({
+      auditId,
+      chainId,
+      signature,
+      signerAddress,
+    });
+  }
+
+  async submitApprovedChainAttestation(auditId: string, chainId: number) {
+    const submitted = await this.blockchainService.submitApprovedChainAttestation(auditId, chainId);
+    if (submitted?.txHash) {
+      await this.advanceStageService.recordClaims(auditId, submitted.txHash, submitted.chainId);
+    }
+    return submitted;
   }
 
   async signAndCompleteAttestation(
@@ -220,7 +272,7 @@ export class AuditService {
     txHash?: string,
     contractAddress?: string,
   ) {
-    const chainId = targetChainId || Number(process.env.DEFAULT_ATTESTATION_CHAIN_ID || 421614);
+    const chainId = targetChainId || getDefaultAttestationChainId();
 
     if (contractAddress && contractAddress.startsWith('0x') && contractAddress.length === 42) {
       this.blockchainService.setAttestationAddress(chainId, contractAddress);
@@ -229,6 +281,7 @@ export class AuditService {
     // 1. Advance stage to COMPLETED (handles 0 open crit/high check, PDF generation, IPFS pinning)
     const completedAudit = await this.advanceStageService.advanceStage(auditId, {
       stage: AuditStage.COMPLETED,
+      skipOnChainPublish: true,
     });
 
     // 2. If client already broadcast the on-chain tx directly via Web3 wallet:
@@ -255,8 +308,22 @@ export class AuditService {
       );
     }
 
+    // 4. Record Trust Passport claims with confirmed on-chain transaction
+    if (onChainRes?.txHash) {
+      await this.advanceStageService.recordClaims(auditId, onChainRes.txHash, onChainRes.chainId || chainId);
+    }
+
+    const finalAudit = await this.prisma.auditRequest.findUnique({
+      where: { id: auditId },
+      include: {
+        findings: true,
+        leadAuditor: true,
+        rounds: { orderBy: { roundNumber: 'asc' } },
+      },
+    });
+
     return {
-      audit: completedAudit,
+      audit: finalAudit || completedAudit,
       onChain: onChainRes,
     };
   }

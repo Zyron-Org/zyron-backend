@@ -11,7 +11,10 @@ import {
   PasswordResetService,
   EmailVerificationService,
   GithubOAuthService,
+  PrivyAuthService,
+  TrustPassportService,
 } from './services';
+import { PassportController } from './passport.controller';
 
 @Module({
   imports: [
@@ -20,7 +23,7 @@ import {
       signOptions: { expiresIn: JWT_EXPIRES_IN as any },
     }),
   ],
-  controllers: [AuthController, UsersController],
+  controllers: [AuthController, UsersController, PassportController],
   providers: [
     AuthService,
     RegisterService,
@@ -30,6 +33,8 @@ import {
     PasswordResetService,
     EmailVerificationService,
     GithubOAuthService,
+    PrivyAuthService,
+    TrustPassportService,
   ],
   exports: [
     AuthService,
@@ -40,6 +45,8 @@ import {
     PasswordResetService,
     EmailVerificationService,
     GithubOAuthService,
+    PrivyAuthService,
+    TrustPassportService,
     JwtModule,
   ],
 })

@@ -12,6 +12,8 @@ import { AdvanceStageService } from '../src/audit/services/advance-stage.service
 import { PrismaService } from '../src/database/database.module';
 import { BlockchainService } from '../src/blockchain/blockchain.service';
 import { AuditSanitizerService } from '../src/audit/services/audit-sanitizer.service';
+import { IpfsService } from '../src/ipfs/ipfs.service';
+import { ReportGeneratorService } from '../src/audit/services/report-generator.service';
 import { AuditStage, FindingSeverity, FindingStatus } from '../src/common/enum';
 
 describe('AI Review & On-Chain Attestation Pipeline (Topic 2)', () => {
@@ -62,7 +64,7 @@ describe('AI Review & On-Chain Attestation Pipeline (Topic 2)', () => {
       computeFindingsMerkleRoot: vi.fn().mockReturnValue('0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890'),
       submitAutomatedAttestation: vi.fn().mockResolvedValue({
         txHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-        chainId: 421614,
+        chainId: 10143,
       }),
       getContractBytecodeHash: vi.fn().mockResolvedValue(null),
     };
@@ -123,12 +125,24 @@ describe('AI Review & On-Chain Attestation Pipeline (Topic 2)', () => {
       analyzeContract: vi.fn(),
     });
 
+    const mockIpfsService = {
+      pinBuffer: vi.fn().mockResolvedValue({ cid: 'bafypdf', ipfsUrl: 'ipfs://bafypdf', gatewayUrl: 'https://ipfs.io/ipfs/bafypdf', size: 2400000 }),
+      pinJson: vi.fn().mockResolvedValue({ cid: 'bafymeta' }),
+      getLocalFile: vi.fn().mockReturnValue(null),
+    };
+
+    const mockReportGenerator = {
+      generateAuditReportPdf: vi.fn().mockResolvedValue(Buffer.from('PDF')),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AiAuditService,
         AiProviderFactory,
         AdvanceStageService,
         AuditSanitizerService,
+        { provide: IpfsService, useValue: mockIpfsService },
+        { provide: ReportGeneratorService, useValue: mockReportGenerator },
         { provide: GeminiProviderService, useValue: mockGeminiProvider },
         { provide: AnthropicProviderService, useValue: mockEmptyProvider('anthropic', 'Claude') },
         { provide: OpenAiProviderService, useValue: mockEmptyProvider('openai', 'OpenAI') },
@@ -249,7 +263,7 @@ describe('AI Review & On-Chain Attestation Pipeline (Topic 2)', () => {
 
       // 4. Verifies response contains the transaction hash and chain ID
       expect(result.onChainTxHash).toBe('0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef');
-      expect(result.onChainChainId).toBe(421614);
+      expect(result.onChainChainId).toBe(10143);
     });
 
     it('should block advancing to COMPLETED if any OPEN critical vulnerability exists', async () => {

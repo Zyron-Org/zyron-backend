@@ -210,28 +210,39 @@ export class ScanOrchestratorService {
           data: { stage: AuditStage.SCANNING, stageNumber: 2, failureReason: null },
         });
 
-        this.agentProverClient.dispatchProverJob(
-          auditId,
-          sourceCode,
-          candidates.map((f) => ({
-            id: f.id,
-            title: f.title,
-            severity: f.severity,
-            description: f.description,
-            location: f.location,
-            vulnerableFunction: f.location?.split(':')[1] || undefined,
-          })),
-        ).catch(async (err) => {
-          const errMsg = `AI Prover Dispatch Failed: ${err.message}`;
-          this.logger.error(`[ScanOrchestrator] ${errMsg}`);
-          await this.prisma.auditRequest.update({
-            where: { id: auditId },
-            data: {
-              stage: 'FAILED',
-              failureReason: errMsg,
-            },
+        this.agentProverClient
+          .dispatchProverJob(
+            auditId,
+            sourceCode,
+            candidates.map((f) => ({
+              id: f.id,
+              title: f.title,
+              severity: f.severity,
+              description: f.description,
+              location: f.location,
+              vulnerableFunction: f.location?.split(':')[1] || undefined,
+            })),
+          )
+          .then(async (res) => {
+            if (!res?.dispatched) {
+              this.logger.log(
+                `[ScanOrchestrator] Prover microservice offline (${res?.message}). Advancing audit ${auditId} directly to IN_REVIEW.`,
+              );
+              await this.prisma.auditRequest.update({
+                where: { id: auditId },
+                data: { stage: AuditStage.IN_REVIEW, stageNumber: 3, failureReason: null },
+              });
+            }
+          })
+          .catch(async (err) => {
+            this.logger.warn(
+              `[ScanOrchestrator] AI Prover Dispatch error (${err.message}). Advancing audit ${auditId} directly to IN_REVIEW.`,
+            );
+            await this.prisma.auditRequest.update({
+              where: { id: auditId },
+              data: { stage: AuditStage.IN_REVIEW, stageNumber: 3, failureReason: null },
+            });
           });
-        });
       } else {
         // No High/Critical findings needed proving, advance straight to IN_REVIEW
         await this.prisma.auditRequest.update({

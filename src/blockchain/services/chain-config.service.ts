@@ -1,5 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
+import {
+  MONAD_TESTNET_ATTESTATION_ADDRESS,
+  MONAD_TESTNET_CHAIN_ID,
+  MONAD_TESTNET_EXPLORER_URL,
+  MONAD_TESTNET_RPC_URL,
+} from '../constants';
 
 export interface ChainConfig {
   chainId: number;
@@ -9,6 +15,7 @@ export interface ChainConfig {
   escrowAddress?: string;
   attestationAddress: string;
   nativeUsdcAddress: string;
+  nativeCurrencySymbol?: string;
 }
 
 @Injectable()
@@ -25,13 +32,14 @@ export class ChainConfigService {
       attestationAddress: process.env.ARBITRUM_ATTESTATION_ADDRESS || '',
       nativeUsdcAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
     }],
-    [421614, {
-      chainId: 421614,
-      name: 'Arbitrum Sepolia',
-      rpcUrl: process.env.ARBITRUM_SEPOLIA_RPC_URL || 'https://sepolia-rollup.arbitrum.io/rpc',
-      explorerUrl: 'https://sepolia.arbiscan.io',
-      attestationAddress: process.env.ARBITRUM_SEPOLIA_ATTESTATION_ADDRESS || process.env.ATTESTATION_CONTRACT_ADDRESS || '0x3331185fAEB2AD65ccDEB7C15025393Ca8F6834D',
+    [MONAD_TESTNET_CHAIN_ID, {
+      chainId: MONAD_TESTNET_CHAIN_ID,
+      name: 'Monad Testnet',
+      rpcUrl: process.env.MONAD_TESTNET_RPC_URL || MONAD_TESTNET_RPC_URL,
+      explorerUrl: MONAD_TESTNET_EXPLORER_URL,
+      attestationAddress: process.env.MONAD_TESTNET_ATTESTATION_ADDRESS || process.env.ATTESTATION_CONTRACT_ADDRESS || MONAD_TESTNET_ATTESTATION_ADDRESS,
       nativeUsdcAddress: '',
+      nativeCurrencySymbol: 'MON',
     }],
     [8453, {
       chainId: 8453,
@@ -46,8 +54,12 @@ export class ChainConfigService {
       name: 'Base Sepolia',
       rpcUrl: process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org',
       explorerUrl: 'https://sepolia.basescan.org',
-      attestationAddress: process.env.BASE_SEPOLIA_ATTESTATION_ADDRESS || '',
+      attestationAddress:
+        process.env.BASE_SEPOLIA_ATTESTATION_ADDRESS !== undefined
+          ? process.env.BASE_SEPOLIA_ATTESTATION_ADDRESS
+          : '0xc242125A0b342E045Cf0E1c2e02C95D1EAEEC5c4',
       nativeUsdcAddress: '',
+      nativeCurrencySymbol: 'ETH',
     }],
     [1, {
       chainId: 1,

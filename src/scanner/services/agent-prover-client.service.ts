@@ -1,8 +1,10 @@
-import { Injectable, Logger, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, UnauthorizedException, Optional } from '@nestjs/common';
 import axios from 'axios';
 import * as crypto from 'crypto';
 import { PrismaService } from '../../database/database.module';
 import { ScannerGateway } from '../scanner.gateway';
+import { EvidenceHasherService } from '../../blockchain/services/evidence-hasher.service';
+import { getDefaultAttestationChainId } from '../../blockchain/constants';
 import { ZYRON_AGENT_URL, AGENT_API_KEY, CALLBACK_SHARED_SECRET, PORT } from '../../config';
 import { AuditStage } from '../../common/enum';
 
@@ -17,7 +19,7 @@ export interface ProverFindingItem {
 
 export interface ProverResultItem {
   findingId: string;
-  verdict?: 'PROVEN_EXPLOIT' | 'PROVEN_FALSE_POSITIVE' | 'CANNOT_REPRODUCE' | 'COMPILATION_FAILED' | string;
+  verdict?: 'PROVEN_EXPLOIT' | 'PROVEN_FALSE_POSITIVE' | 'INCONCLUSIVE' | 'CANNOT_REPRODUCE' | 'COMPILATION_FAILED' | string;
   status?: string;
   synthesizedPoC?: string;
   exploitSuccess?: boolean;
@@ -25,6 +27,26 @@ export interface ProverResultItem {
   deltaBalance?: string;
   traceSteps?: any[];
   errorReason?: string;
+  summary?: string;
+  verification?: {
+    verifierVersion?: string;
+    claimedVerdict?: string;
+    finalStatus?: 'PROVEN_EXPLOIT' | 'PROVEN_FALSE_POSITIVE' | 'INCONCLUSIVE';
+    reasonCodes?: string[];
+    sourceHashes?: Record<string, string>;
+    testFile?: string;
+    testFunction?: string;
+    testArtifactSha256?: string;
+    runs?: Array<{
+      run?: number;
+      exitCode: number;
+      passed: boolean;
+      gasUsed?: number;
+      outputSha256: string;
+    }>;
+  };
+  investigation?: any[];
+  model?: { provider: string; model: string; turns?: number; totalTokens?: number };
 }
 
 export interface ProverCallbackPayload {
@@ -39,11 +61,15 @@ export interface ProverCallbackPayload {
 @Injectable()
 export class AgentProverClientService {
   private readonly logger = new Logger(AgentProverClientService.name);
+  private readonly evidenceHasher: EvidenceHasherService;
 
   constructor(
     private prisma: PrismaService,
     private scannerGateway: ScannerGateway,
-  ) {}
+    @Optional() evidenceHasher?: EvidenceHasherService,
+  ) {
+    this.evidenceHasher = evidenceHasher || new EvidenceHasherService();
+  }
 
   /**
    * Dispatch critical and high findings to the autonomous AI prover & sandbox microservice
@@ -145,13 +171,22 @@ export class AgentProverClientService {
     rawBody: string | undefined,
     payload: ProverCallbackPayload,
   ) {
-    // Verify HMAC-SHA256 signature
-    if (signatureHeader && CALLBACK_SHARED_SECRET && rawBody) {
-      const hmac = crypto.createHmac('sha256', CALLBACK_SHARED_SECRET);
-      hmac.update(rawBody);
+    // Verify HMAC-SHA256 signature (enforced whenever CALLBACK_SHARED_SECRET env is explicitly configured or header is present)
+    const activeSecret = process.env.CALLBACK_SHARED_SECRET || CALLBACK_SHARED_SECRET;
+    const requireHmac = Boolean(process.env.CALLBACK_SHARED_SECRET) || Boolean(signatureHeader);
+    if (requireHmac && activeSecret) {
+      if (!signatureHeader) {
+        this.logger.error(`[AgentProverClient] Missing x-zyron-agent-signature header on prover callback!`);
+        throw new UnauthorizedException('Missing callback signature.');
+      }
+      const bodyToSign = rawBody ?? JSON.stringify(payload);
+      const hmac = crypto.createHmac('sha256', activeSecret);
+      hmac.update(bodyToSign);
       const expectedSig = `sha256=${hmac.digest('hex')}`;
 
-      if (signatureHeader !== expectedSig) {
+      const sigBuf = Buffer.from(signatureHeader, 'utf8');
+      const expBuf = Buffer.from(expectedSig, 'utf8');
+      if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
         this.logger.error(`[AgentProverClient] HMAC signature mismatch on prover callback!`);
         throw new UnauthorizedException('Invalid callback signature.');
       }
@@ -197,7 +232,13 @@ export class AgentProverClientService {
       throw new BadRequestException('Payload missing valid results array');
     }
 
+    const auditRecord = await this.prisma.auditRequest.findUnique({
+      where: { id: auditId },
+    });
+
     let updatedCount = 0;
+    const evidenceHashes: string[] = [];
+
     for (const result of results) {
       try {
         const finding = await this.prisma.finding.findFirst({
@@ -214,14 +255,19 @@ export class AgentProverClientService {
           continue;
         }
 
-        const verdict = result.verdict || result.status;
-        const isFalsePositive = verdict === 'PROVEN_FALSE_POSITIVE';
-        const isExploit = verdict === 'PROVEN_EXPLOIT';
+        // Deterministic verifier status takes precedence over raw model claim
+        const rawStatus = result.verification?.finalStatus || result.verdict || result.status;
+        const normalizedVerdict = this.evidenceHasher.normalizeVerificationStatus(rawStatus);
+        const isFalsePositive = normalizedVerdict === 'PROVEN_FALSE_POSITIVE';
+        const isExploit = normalizedVerdict === 'PROVEN_EXPLOIT';
         const fundsDrained = result.fundsDrainedEth !== undefined ? `${result.fundsDrainedEth} ETH` : (result.deltaBalance || '0.0 ETH');
 
         let fpJustification = finding.fpJustification;
         if (isFalsePositive) {
-          fpJustification = (result as any).reasoning || (result as any).summary || `Autonomous EVM Sandbox Verification: Invariant held during simulated attack. Target funds preserved (${fundsDrained} drained).`;
+          fpJustification =
+            (result as any).reasoning ||
+            result.summary ||
+            `Autonomous EVM Sandbox Verification: Invariant held during simulated attack. Target funds preserved (${fundsDrained} drained).`;
         }
 
         await this.prisma.finding.update({
@@ -229,13 +275,108 @@ export class AgentProverClientService {
           data: {
             traceSteps: result.traceSteps ? JSON.stringify(result.traceSteps) : null,
             synthesizedPoC: result.synthesizedPoC || null,
-            fuzzTestStatus: verdict || 'PROVEN_EXPLOIT',
+            fuzzTestStatus: normalizedVerdict,
             fundsDrainedEth: typeof result.fundsDrainedEth === 'number' ? result.fundsDrainedEth : null,
             falsePositive: isFalsePositive ? true : finding.falsePositive,
             fpJustification,
             confidence: isExploit ? '100%' : (isFalsePositive ? '10%' : finding.confidence),
           },
         });
+
+        // Build and persist canonical zyron.evidence/v1 record
+        const sourceHashes = result.verification?.sourceHashes || (auditRecord?.sourceHash ? { [auditRecord.contractFileName || 'Contract.sol']: auditRecord.sourceHash } : {});
+        const testArtifactHash =
+          result.verification?.testArtifactSha256 ||
+          (result.synthesizedPoC
+            ? '0x' + crypto.createHash('sha256').update(result.synthesizedPoC, 'utf8').digest('hex')
+            : '');
+        const runs = (result.verification?.runs || []).map((r) => ({
+          exitCode: r.exitCode,
+          passed: r.passed,
+          stdoutHash: r.outputSha256.startsWith('0x') ? r.outputSha256 : `0x${r.outputSha256}`,
+          gasUsed: r.gasUsed,
+        }));
+
+        const evidenceRecord = this.evidenceHasher.buildFindingEvidenceV1({
+          auditId,
+          findingId: finding.id,
+          displayId: finding.displayId,
+          repository: auditRecord?.githubRepoUrl || null,
+          gitCommit: auditRecord?.gitCommit || null,
+          sourceHashes,
+          targetContractFile: auditRecord?.contractFileName || 'Contract.sol',
+          targetContractAddress: auditRecord?.contractAddress || null,
+          chainId: auditRecord?.onChainChainId || getDefaultAttestationChainId(),
+          bytecodeHash: auditRecord?.bytecodeHash || null,
+          ruleId: finding.ruleId,
+          severity: finding.severity,
+          taxonomy: finding.taxonomy,
+          testFile: result.verification?.testFile || null,
+          testFunction: result.verification?.testFunction || null,
+          testArtifactHash,
+          claimedVerdict: result.verification?.claimedVerdict || result.verdict || normalizedVerdict,
+          finalStatus: normalizedVerdict,
+          runs,
+          rejectionReasons: result.verification?.reasonCodes || [],
+          verifierVersion: result.verification?.verifierVersion || 'zyron-verifier/2.0.0',
+          provider: result.model?.provider || 'meta',
+          model: result.model?.model || 'muse-spark-1.3',
+          reportRef: {
+            ipfsCid: auditRecord?.ipfsCid || null,
+            reportUrl: `/api/v1/audits/${auditId}/report.pdf`,
+          },
+        });
+
+        evidenceHashes.push(evidenceRecord.evidenceHash);
+
+        if ((this.prisma as any).proverEvidence?.upsert) {
+          await (this.prisma as any).proverEvidence.upsert({
+            where: {
+              auditId_findingId: {
+                auditId,
+                findingId: finding.id,
+              },
+            },
+            update: {
+              findingDisplayId: finding.displayId,
+              schemaVersion: evidenceRecord.schemaVersion,
+              verifierVersion: result.verification?.verifierVersion || 'zyron-verifier/2.0.0',
+              finalStatus: normalizedVerdict,
+              claimedVerdict: result.verification?.claimedVerdict || result.verdict || normalizedVerdict,
+              testFile: result.verification?.testFile || null,
+              testFunction: result.verification?.testFunction || null,
+              testArtifactHash: testArtifactHash || null,
+              sourceHashesJson: JSON.stringify(sourceHashes),
+              provider: result.model?.provider || 'meta',
+              model: result.model?.model || 'muse-spark-1.3',
+              runsJson: JSON.stringify(runs),
+              investigationJson: result.investigation ? JSON.stringify(result.investigation) : null,
+              canonicalJson: evidenceRecord.canonicalJson,
+              evidenceHash: evidenceRecord.evidenceHash,
+              rejectionReasonsJson: JSON.stringify(result.verification?.reasonCodes || []),
+            },
+            create: {
+              auditId,
+              findingId: finding.id,
+              findingDisplayId: finding.displayId,
+              schemaVersion: evidenceRecord.schemaVersion,
+              verifierVersion: result.verification?.verifierVersion || 'zyron-verifier/2.0.0',
+              finalStatus: normalizedVerdict,
+              claimedVerdict: result.verification?.claimedVerdict || result.verdict || normalizedVerdict,
+              testFile: result.verification?.testFile || null,
+              testFunction: result.verification?.testFunction || null,
+              testArtifactHash: testArtifactHash || null,
+              sourceHashesJson: JSON.stringify(sourceHashes),
+              provider: result.model?.provider || 'meta',
+              model: result.model?.model || 'muse-spark-1.3',
+              runsJson: JSON.stringify(runs),
+              investigationJson: result.investigation ? JSON.stringify(result.investigation) : null,
+              canonicalJson: evidenceRecord.canonicalJson,
+              evidenceHash: evidenceRecord.evidenceHash,
+              rejectionReasonsJson: JSON.stringify(result.verification?.reasonCodes || []),
+            },
+          });
+        }
 
         updatedCount++;
       } catch (err: any) {
@@ -254,6 +395,8 @@ export class AgentProverClientService {
     const currentAudit = await this.prisma.auditRequest.findUnique({
       where: { id: auditId },
     });
+    const evidenceMerkleRoot =
+      evidenceHashes.length > 0 ? this.evidenceHasher.computeEvidenceMerkleRoot(evidenceHashes) : undefined;
     if (currentAudit && (currentAudit.stage === 'SCANNING' || currentAudit.stage === 'PENDING')) {
       await this.prisma.auditRequest.update({
         where: { id: auditId },
@@ -261,12 +404,18 @@ export class AgentProverClientService {
           stage: AuditStage.IN_REVIEW,
           stageNumber: 3,
           failureReason: null,
+          ...(evidenceMerkleRoot ? { merkleRoot: evidenceMerkleRoot } : {}),
         },
+      });
+    } else if (currentAudit && evidenceMerkleRoot) {
+      await this.prisma.auditRequest.update({
+        where: { id: auditId },
+        data: { merkleRoot: evidenceMerkleRoot },
       });
     }
 
     this.logger.log(`[AgentProverClient] Successfully updated ${updatedCount} finding(s) with EVM traces. Audit advanced to IN_REVIEW.`);
-    return { success: true, updatedCount };
+    return { success: true, updatedCount, evidenceMerkleRoot };
   }
 
   /**

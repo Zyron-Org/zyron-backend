@@ -6,7 +6,7 @@ import { RegisterDto, LoginDto, SiweVerifyDto, UpdateRoleDto, ForgotPasswordDto,
 import { JwtAuthGuard, RolesGuard } from '../common/guards';
 import { CurrentUser, CurrentUserPayload, Roles, Public } from '../common/decorators';
 import { UserRole } from '../common/enum';
-import { GithubOAuthService } from './services';
+import { GithubOAuthService, PrivyAuthService } from './services';
 import { GITHUB_CLIENT_ID } from '../config';
 import axios from 'axios';
 
@@ -16,7 +16,17 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly githubOAuthService: GithubOAuthService,
+    private readonly privyAuthService: PrivyAuthService,
   ) {}
+
+  @Public()
+  @Post('privy')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Authenticate via Privy identity & auto-provision Trust Passport' })
+  @ApiResponse({ status: 200, description: 'Privy authentication successful, returns JWT session and Trust Passport' })
+  async privyLogin(@Body() dto: { privyToken: string; walletAddress?: string; email?: string }) {
+    return this.privyAuthService.authenticateWithPrivy(dto);
+  }
 
   @Public()
   @Post('register')

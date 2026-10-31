@@ -117,7 +117,7 @@ describe('PaymentService (Unit & Integration Tests)', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should support Arbitrum (42161), Ethereum (1), and Base (8453) chain IDs', async () => {
+    it('should support Monad Testnet (10143), Ethereum (1), and Base (8453) chain IDs', async () => {
       mockPrisma.auditRequest.findUnique.mockResolvedValue(mockAudit);
       mockPrisma.payment.upsert.mockResolvedValue({
         ...mockPayment,
@@ -193,10 +193,12 @@ describe('PaymentService (Unit & Integration Tests)', () => {
       expect(result.auditId).toBe('ZYR-9481');
     });
 
-    it('should throw NotFoundException if no payment record exists for audit', async () => {
+    it('should return complimentary FREE_BETA payment if no payment record exists for audit', async () => {
       mockPrisma.payment.findUnique.mockResolvedValue(null);
 
-      await expect(paymentService.getPaymentByAudit('ZYR-9481')).rejects.toThrow(NotFoundException);
+      const result = await paymentService.getPaymentByAudit('ZYR-9481');
+      expect(result.status).toBe('FREE_BETA');
+      expect(result.isFree).toBe(true);
     });
   });
 });
