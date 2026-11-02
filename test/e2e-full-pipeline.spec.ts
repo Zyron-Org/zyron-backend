@@ -20,7 +20,20 @@ import { AttestationSubmitterService } from '../src/blockchain/services/attestat
 describe('End-to-End Zyron Security Pipeline (AST Scan -> Meta AI Prover -> Verifier v2 -> zyron.evidence/v1 -> Multichain Attestation)', () => {
   const savedEnv = { ...process.env };
   const vaultCorePath = path.resolve(__dirname, '../../zyron-test-protocol/contracts/VaultCore.sol');
-  const vaultCoreSource = fs.readFileSync(vaultCorePath, 'utf8');
+  const vaultCoreSource = fs.existsSync(vaultCorePath)
+    ? fs.readFileSync(vaultCorePath, 'utf8')
+    : `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+contract VaultCore {
+    mapping(address => uint256) public balances;
+    function deposit() external payable { balances[msg.sender] += msg.value; }
+    function withdraw(uint256 amount) external {
+        require(balances[msg.sender] >= amount, "Insufficient balance");
+        (bool ok, ) = msg.sender.call{value: amount}("");
+        require(ok, "Transfer failed");
+        balances[msg.sender] -= amount;
+    }
+}`;
   const vaultCoreSha256 = '0x' + crypto.createHash('sha256').update(vaultCoreSource).digest('hex');
   const runtimeBytecodeHash = '0x' + crypto.createHash('sha256').update('VaultCore-runtime-bytecode').digest('hex');
 

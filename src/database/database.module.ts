@@ -14,9 +14,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    * Idempotently ensures new columns and tables (Privy DID, TrustPassport, TrustClaim,
    * ProverEvidence, ChainAttestation) exist in SQLite even if `prisma db push` was skipped during deploy.
    */
-  private async ensureSchemaUpToDate() {
+  async ensureSchemaUpToDate() {
     const statements = [
       `ALTER TABLE "User" ADD COLUMN "privyDid" TEXT`,
+      `ALTER TABLE "User" ADD COLUMN "githubId" TEXT`,
+      `ALTER TABLE "User" ADD COLUMN "githubLogin" TEXT`,
+      `ALTER TABLE "User" ADD COLUMN "githubAccessToken" TEXT`,
+      `ALTER TABLE "User" ADD COLUMN "githubAvatarUrl" TEXT`,
       `CREATE UNIQUE INDEX IF NOT EXISTS "User_privyDid_key" ON "User"("privyDid")`,
       `ALTER TABLE "AuditRequest" ADD COLUMN "onChainChainId" INTEGER`,
       `ALTER TABLE "Payment" ADD COLUMN "chainId" INTEGER`,

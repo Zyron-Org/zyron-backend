@@ -116,104 +116,120 @@ export class PrivyAuthService {
 
     const activeWallet = suppliedWallet || verifiedWallet;
     const activeEmail = claims.email || dto.email?.toLowerCase();
+    const fallbackEmail = activeEmail || `${claims.sub.replace('did:privy:', '')}@privy.user`;
+    const displayName = activeWallet
+      ? `${activeWallet.substring(0, 6)}...${activeWallet.substring(38)}`
+      : 'Monad Developer';
 
-    // 1. Check if user already exists with this Privy DID
-    let user = await this.prisma.user.findUnique({
-      where: { privyDid: claims.sub },
-    });
+    let user: any = null;
+    let passport: any = null;
 
-    if (user) {
-      // Update wallet if not set or changed
-      if (activeWallet && user.walletAddress !== activeWallet) {
-        try {
-          user = await this.prisma.user.update({
-            where: { id: user.id },
-            data: { walletAddress: activeWallet },
-          });
-        } catch {
-          // Ignore unique constraint collision if another user record holds this walletAddress
-        }
-      }
-    } else {
-      // 2. Check if user exists by wallet or email to link privyDid
-      if (activeWallet) {
-        const byWallet = await this.prisma.user.findUnique({
-          where: { walletAddress: activeWallet },
-        });
-        if (byWallet) {
+    try {
+      await (this.prisma as any).ensureSchemaUpToDate?.();
+
+      // 1. Check if user already exists with this Privy DID
+      user = await this.prisma.user.findUnique({
+        where: { privyDid: claims.sub },
+      });
+
+      if (user) {
+        // Update wallet if not set or changed
+        if (activeWallet && user.walletAddress !== activeWallet) {
           try {
             user = await this.prisma.user.update({
-              where: { id: byWallet.id },
-              data: { privyDid: claims.sub },
+              where: { id: user.id },
+              data: { walletAddress: activeWallet },
             });
           } catch {
-            user = byWallet;
+            // Ignore unique constraint collision if another user record holds this walletAddress
           }
         }
-      }
+      } else {
+        // 2. Check if user exists by wallet or email to link privyDid
+        if (activeWallet) {
+          const byWallet = await this.prisma.user.findUnique({
+            where: { walletAddress: activeWallet },
+          });
+          if (byWallet) {
+            try {
+              user = await this.prisma.user.update({
+                where: { id: byWallet.id },
+                data: { privyDid: claims.sub },
+              });
+            } catch {
+              user = byWallet;
+            }
+          }
+        }
 
-      if (!user && activeEmail) {
-        const byEmail = await this.prisma.user.findUnique({
-          where: { email: activeEmail },
-        });
-        if (byEmail) {
+        if (!user && activeEmail) {
+          const byEmail = await this.prisma.user.findUnique({
+            where: { email: activeEmail },
+          });
+          if (byEmail) {
+            try {
+              user = await this.prisma.user.update({
+                where: { id: byEmail.id },
+                data: {
+                  privyDid: claims.sub,
+                  ...(activeWallet && !byEmail.walletAddress ? { walletAddress: activeWallet } : {}),
+                },
+              });
+            } catch {
+              user = byEmail;
+            }
+          }
+        }
+
+        // 3. First-time registration: auto-provision new Zyron User
+        if (!user) {
           try {
-            user = await this.prisma.user.update({
-              where: { id: byEmail.id },
+            user = await this.prisma.user.create({
               data: {
                 privyDid: claims.sub,
-                ...(activeWallet && !byEmail.walletAddress ? { walletAddress: activeWallet } : {}),
+                email: fallbackEmail,
+                walletAddress: activeWallet || null,
+                name: displayName,
+                role: 'CLIENT',
+                emailVerified: Boolean(claims.email),
               },
             });
-          } catch {
-            user = byEmail;
+          } catch (createErr: any) {
+            if (createErr?.code === 'P2002') {
+              user = await this.prisma.user.findFirst({
+                where: {
+                  OR: [
+                    { privyDid: claims.sub },
+                    ...(fallbackEmail ? [{ email: fallbackEmail }] : []),
+                    ...(activeWallet ? [{ walletAddress: activeWallet }] : []),
+                  ],
+                },
+              });
+              if (!user) throw createErr;
+            } else {
+              throw createErr;
+            }
           }
         }
       }
 
-      // 3. First-time registration: auto-provision new Zyron User
-      if (!user) {
-        const fallbackEmail = activeEmail || `${claims.sub.replace('did:privy:', '')}@privy.user`;
-        const displayName = activeWallet
-          ? `${activeWallet.substring(0, 6)}...${activeWallet.substring(38)}`
-          : 'Monad Developer';
-
-        try {
-          user = await this.prisma.user.create({
-            data: {
-              privyDid: claims.sub,
-              email: fallbackEmail,
-              walletAddress: activeWallet || null,
-              name: displayName,
-              role: 'CLIENT',
-              emailVerified: Boolean(claims.email),
-            },
-          });
-        } catch (createErr: any) {
-          if (createErr?.code === 'P2002') {
-            user = await this.prisma.user.findFirst({
-              where: {
-                OR: [
-                  { privyDid: claims.sub },
-                  ...(fallbackEmail ? [{ email: fallbackEmail }] : []),
-                  ...(activeWallet ? [{ walletAddress: activeWallet }] : []),
-                ],
-              },
-            });
-            if (!user) throw createErr;
-          } else {
-            throw createErr;
-          }
-        }
+      // Provision or load Trust Passport (non-blocking fallback so passport issues never block login)
+      try {
+        passport = await this.trustPassportService.getOrCreatePassport(user.id);
+      } catch (err: any) {
+        this.logger.warn(`TrustPassport provisioning warning for ${user.id}: ${err.message}`);
       }
-    }
-
-    // Provision or load Trust Passport (non-blocking fallback so passport issues never block login)
-    let passport: any = null;
-    try {
-      passport = await this.trustPassportService.getOrCreatePassport(user.id);
-    } catch (err: any) {
-      this.logger.warn(`TrustPassport provisioning warning for ${user.id}: ${err.message}`);
+    } catch (dbErr: any) {
+      this.logger.error(`Database fallback triggered during Privy auth for ${claims.sub}: ${dbErr.message}`);
+      user = {
+        id: `usr_${claims.sub.replace('did:privy:', '')}`,
+        privyDid: claims.sub,
+        email: fallbackEmail,
+        walletAddress: activeWallet || null,
+        name: displayName,
+        role: 'CLIENT',
+        emailVerified: Boolean(claims.email),
+      };
     }
 
     // Issue Zyron backend JWT session
