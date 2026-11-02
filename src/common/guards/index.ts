@@ -58,10 +58,19 @@ export class JwtAuthGuard implements CanActivate {
 
       if (payload && (payload.sub || payload.email)) {
         const userId = payload.sub || 'usr_client_01';
+        const privyDid = userId.startsWith('did:privy:') ? userId : payload.privyDid;
+
         let user = await this.prisma.user.findUnique({
           where: { id: userId },
           include: { organization: true },
         });
+
+        if (!user && privyDid) {
+          user = await this.prisma.user.findUnique({
+            where: { privyDid },
+            include: { organization: true },
+          });
+        }
 
         if (!user && payload.email) {
           user = await this.prisma.user.findUnique({
@@ -76,26 +85,44 @@ export class JwtAuthGuard implements CanActivate {
             org = await this.prisma.organization.create({
               data: {
                 name: 'Aura Finance DAO Ltd.',
-                slug: 'aura-finance-' + Math.random().toString(36).substring(2, 6),
-                website: 'https://auraprotocol.io',
+                tier: 'standard',
               },
             });
           }
-          user = await this.prisma.user.create({
-            data: {
-              id: userId.startsWith('usr_') ? userId : undefined,
-              email: payload.email || 'security@auraprotocol.io',
-              name: payload.name || 'Aura Core Protocol',
-              passwordHash: '$2b$10$e8N4Yy7P0uU1vW.aA8.8ueQY3c1w3t2u1vW.aA8.8ueQY3c1w3t2',
-              role: payload.role || 'CLIENT',
-              organizationId: org.id,
-            },
-            include: { organization: true },
-          });
+          const safeEmail =
+            payload.email ||
+            (privyDid ? `${privyDid.replace('did:privy:', '')}@privy.user` : `user_${Date.now()}@zyron.labs`);
+
+          try {
+            user = await this.prisma.user.create({
+              data: {
+                id: userId.startsWith('usr_') ? userId : undefined,
+                email: safeEmail,
+                name: payload.name || (privyDid ? 'Monad Developer' : 'Aura Core Protocol'),
+                passwordHash: '$2b$10$e8N4Yy7P0uU1vW.aA8.8ueQY3c1w3t2u1vW.aA8.8ueQY3c1w3t2',
+                role: payload.role || 'CLIENT',
+                privyDid: privyDid || undefined,
+                organizationId: org.id,
+              },
+              include: { organization: true },
+            });
+          } catch {
+            user = await this.prisma.user.findFirst({
+              where: {
+                OR: [
+                  ...(privyDid ? [{ privyDid }] : []),
+                  { email: safeEmail },
+                ],
+              },
+              include: { organization: true },
+            });
+          }
         }
 
-        request.user = user;
-        return true;
+        if (user) {
+          request.user = user;
+          return true;
+        }
       }
 
       throw new UnauthorizedException('Invalid or unparseable access token');

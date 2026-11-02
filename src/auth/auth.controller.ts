@@ -12,6 +12,7 @@ import { GITHUB_CLIENT_ID } from '../config';
 import axios from 'axios';
 
 @ApiTags('Authentication')
+@SkipThrottle()
 @Controller('auth')
 export class AuthController {
   constructor(
