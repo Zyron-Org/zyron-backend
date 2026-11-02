@@ -46,50 +46,73 @@ export class TrustPassportService {
     });
 
     if (!passport) {
-      const handle =
+      const baseHandle =
         user.githubLogin ||
         user.auditorHandle ||
         (user.walletAddress ? `dev-${user.walletAddress.substring(2, 8).toLowerCase()}` : `user-${user.id.substring(0, 8)}`);
 
-      passport = await this.prisma.trustPassport.create({
-        data: {
-          userId,
-          handle,
-          title: `${user.name}'s Trust Passport`,
-          isVerified: Boolean(user.privyDid || user.githubLogin || user.walletAddress),
-          reputationScore: this.calculateInitialReputation(user),
-        },
-        include: {
-          user: true,
-          claims: true,
-        },
-      });
-
-      // Automatically create baseline credential claims
-      if (user.privyDid) {
-        await this.createInitialClaim(passport.id, {
-          claimType: 'DEVELOPER_VERIFIED',
-          subject: user.privyDid,
-          issuer: 'ZYRON_SYSTEM',
-          evidence: {
-            method: 'PRIVY_EMBEDDED_IDENTITY',
-            walletAddress: user.walletAddress,
-            verifiedAt: new Date().toISOString(),
+      try {
+        passport = await this.prisma.trustPassport.create({
+          data: {
+            userId,
+            handle: baseHandle,
+            title: `${user.name}'s Trust Passport`,
+            isVerified: Boolean(user.privyDid || user.githubLogin || user.walletAddress),
+            reputationScore: this.calculateInitialReputation(user),
+          },
+          include: {
+            user: true,
+            claims: true,
+          },
+        });
+      } catch {
+        const fallbackHandle = `${baseHandle}-${userId.slice(-4)}`;
+        passport = await this.prisma.trustPassport.upsert({
+          where: { userId },
+          update: {},
+          create: {
+            userId,
+            handle: fallbackHandle,
+            title: `${user.name}'s Trust Passport`,
+            isVerified: Boolean(user.privyDid || user.githubLogin || user.walletAddress),
+            reputationScore: this.calculateInitialReputation(user),
+          },
+          include: {
+            user: true,
+            claims: true,
           },
         });
       }
 
-      if (user.githubLogin) {
-        await this.createInitialClaim(passport.id, {
-          claimType: 'GITHUB_VERIFIED',
-          subject: user.githubLogin,
-          issuer: 'ZYRON_SYSTEM',
-          evidence: {
-            githubId: user.githubId,
-            githubLogin: user.githubLogin,
-            verifiedAt: new Date().toISOString(),
-          },
-        });
+      // Automatically create baseline credential claims
+      try {
+        if (user.privyDid) {
+          await this.createInitialClaim(passport.id, {
+            claimType: 'DEVELOPER_VERIFIED',
+            subject: user.privyDid,
+            issuer: 'ZYRON_SYSTEM',
+            evidence: {
+              method: 'PRIVY_EMBEDDED_IDENTITY',
+              walletAddress: user.walletAddress,
+              verifiedAt: new Date().toISOString(),
+            },
+          });
+        }
+
+        if (user.githubLogin) {
+          await this.createInitialClaim(passport.id, {
+            claimType: 'GITHUB_VERIFIED',
+            subject: user.githubLogin,
+            issuer: 'ZYRON_SYSTEM',
+            evidence: {
+              githubId: user.githubId,
+              githubLogin: user.githubLogin,
+              verifiedAt: new Date().toISOString(),
+            },
+          });
+        }
+      } catch (err: any) {
+        this.logger.warn(`Could not create initial passport claim for ${userId}: ${err.message}`);
       }
     }
 

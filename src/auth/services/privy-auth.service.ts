@@ -125,10 +125,14 @@ export class PrivyAuthService {
     if (user) {
       // Update wallet if not set or changed
       if (activeWallet && user.walletAddress !== activeWallet) {
-        user = await this.prisma.user.update({
-          where: { id: user.id },
-          data: { walletAddress: activeWallet },
-        });
+        try {
+          user = await this.prisma.user.update({
+            where: { id: user.id },
+            data: { walletAddress: activeWallet },
+          });
+        } catch {
+          // Ignore unique constraint collision if another user record holds this walletAddress
+        }
       }
     } else {
       // 2. Check if user exists by wallet or email to link privyDid
@@ -137,10 +141,14 @@ export class PrivyAuthService {
           where: { walletAddress: activeWallet },
         });
         if (byWallet) {
-          user = await this.prisma.user.update({
-            where: { id: byWallet.id },
-            data: { privyDid: claims.sub },
-          });
+          try {
+            user = await this.prisma.user.update({
+              where: { id: byWallet.id },
+              data: { privyDid: claims.sub },
+            });
+          } catch {
+            user = byWallet;
+          }
         }
       }
 
@@ -149,13 +157,17 @@ export class PrivyAuthService {
           where: { email: activeEmail },
         });
         if (byEmail) {
-          user = await this.prisma.user.update({
-            where: { id: byEmail.id },
-            data: {
-              privyDid: claims.sub,
-              ...(activeWallet && !byEmail.walletAddress ? { walletAddress: activeWallet } : {}),
-            },
-          });
+          try {
+            user = await this.prisma.user.update({
+              where: { id: byEmail.id },
+              data: {
+                privyDid: claims.sub,
+                ...(activeWallet && !byEmail.walletAddress ? { walletAddress: activeWallet } : {}),
+              },
+            });
+          } catch {
+            user = byEmail;
+          }
         }
       }
 
