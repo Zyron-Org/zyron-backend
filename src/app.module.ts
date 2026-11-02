@@ -19,7 +19,7 @@ import { EmailModule } from './email/email.module';
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([{
       ttl: 60000,
-      limit: 100,
+      limit: 600,
     }]),
     DatabaseModule,
     BlockchainModule,

@@ -1,4 +1,5 @@
 import { Controller, Post, Get, Patch, Delete, Body, UseGuards, Param, Query, HttpCode, HttpStatus, Redirect, Res, HttpException } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -20,6 +21,7 @@ export class AuthController {
   ) {}
 
   @Public()
+  @SkipThrottle()
   @Post('privy')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Authenticate via Privy identity & auto-provision Trust Passport' })

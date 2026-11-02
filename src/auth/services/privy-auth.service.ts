@@ -208,8 +208,13 @@ export class PrivyAuthService {
       }
     }
 
-    // Provision or load Trust Passport
-    const passport = await this.trustPassportService.getOrCreatePassport(user.id);
+    // Provision or load Trust Passport (non-blocking fallback so passport issues never block login)
+    let passport: any = null;
+    try {
+      passport = await this.trustPassportService.getOrCreatePassport(user.id);
+    } catch (err: any) {
+      this.logger.warn(`TrustPassport provisioning warning for ${user.id}: ${err.message}`);
+    }
 
     // Issue Zyron backend JWT session
     const accessToken = this.jwtService.sign({
