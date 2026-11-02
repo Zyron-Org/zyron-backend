@@ -48,6 +48,7 @@ export class GithubCommentService {
     commitSha: string,
     leadAuditorName?: string,
   ) {
+    const appUrl = (process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
     const body = `### ⏳ Zyron Security Labs Audit Initiated
 
 Automated smart contract security audit has been queued via GitHub bot mention!
@@ -59,7 +60,7 @@ Automated smart contract security audit has been queued via GitHub bot mention!
 * **Status**: Running multi-tool AST security scans & invariant checks...
 
 ---
-*View progress & live workbench on the [Zyron Security Portal](https://app.zyron.labs/portal/track/${ticketId}).*`;
+*View progress & live workbench on the [Zyron Security Portal](${appUrl}/portal/track/${ticketId}).*`;
 
     return this.postCommentToIssue(owner, repo, issueNumber, body);
   }

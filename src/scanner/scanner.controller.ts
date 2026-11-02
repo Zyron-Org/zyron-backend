@@ -85,8 +85,9 @@ export class ScannerController {
   async proverCallback(
     @Headers('x-zyron-agent-signature') signature: string,
     @Body() payload: any,
+    @Req() req?: any,
   ) {
-    const rawBody = JSON.stringify(payload);
+    const rawBody = req?.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(payload);
     return this.scannerService.handleProverCallback(signature, rawBody, payload);
   }
 

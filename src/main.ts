@@ -8,7 +8,7 @@ import { swaggerAuth } from './common/middleware/swagger-auth.middleware';
 import helmet from 'helmet';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   // Global Prefix (/api/v1) matching codebase pattern
   app.setGlobalPrefix('api/v1', {

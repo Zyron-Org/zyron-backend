@@ -1,8 +1,8 @@
 import { Injectable, Logger, BadRequestException, Optional } from '@nestjs/common';
-import { ethers, keccak256, toUtf8Bytes } from 'ethers';
+import { ethers, keccak256, toUtf8Bytes, verifyTypedData } from 'ethers';
 import { PrismaService } from '../../database/database.module';
 import { ChainConfigService } from './chain-config.service';
-import { ChainAdapterRegistry, PreparedChainAttestation } from '../adapters';
+import { ChainAdapterRegistry, EIP712_ATTESTATION_TYPES, PreparedChainAttestation } from '../adapters';
 import { getDefaultAttestationChainId } from '../constants';
 import { normalizeBytes32 } from '../utils';
 
@@ -189,6 +189,37 @@ export class AttestationSubmitterService {
     });
     const status = payloadMessage?.status || 2; // MANUALLY_ATTESTED
     const timestamp = payloadMessage?.timestamp || Math.floor(Date.now() / 1000);
+
+    // Server-side EIP-712 signature check before spending operator gas on-chain
+    if (signature && /^0x[0-9a-fA-F]{130}$/.test(signature.trim())) {
+      const domain = {
+        name: 'ZyronAttestation',
+        version: '3.0.0',
+        chainId,
+        verifyingContract: config.attestationAddress,
+      };
+      const typedMsg = {
+        auditId: input.auditId,
+        merkleRoot: input.merkleRoot,
+        repoTreeHash: input.repoTreeHash,
+        bytecodeHash: input.bytecodeHash,
+        leadAuditor: input.leadAuditor,
+        sloc: input.sloc,
+        status,
+        timestamp,
+      };
+      const recovered = verifyTypedData(
+        domain,
+        { AttestationPayload: EIP712_ATTESTATION_TYPES.AttestationPayload },
+        typedMsg,
+        signature.trim(),
+      );
+      if (recovered.toLowerCase() !== input.leadAuditor.toLowerCase()) {
+        throw new BadRequestException(
+          `EIP-712 signature signer mismatch: recovered ${recovered}, expected ${input.leadAuditor}`,
+        );
+      }
+    }
 
     this.logger.log(`Relaying signed attestation to chain ${chainId} for ${auditId}...`);
     try {

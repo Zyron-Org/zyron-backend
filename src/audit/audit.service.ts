@@ -274,7 +274,15 @@ export class AuditService {
   ) {
     const chainId = targetChainId || getDefaultAttestationChainId();
 
-    if (contractAddress && contractAddress.startsWith('0x') && contractAddress.length === 42) {
+    const existingChainConfig = this.blockchainService
+      .getSupportedChains()
+      .find((c) => c.chainId === chainId);
+    if (
+      contractAddress &&
+      contractAddress.startsWith('0x') &&
+      contractAddress.length === 42 &&
+      !existingChainConfig?.attestationAddress
+    ) {
       this.blockchainService.setAttestationAddress(chainId, contractAddress);
     }
 

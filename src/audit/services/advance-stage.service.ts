@@ -108,10 +108,12 @@ export class AdvanceStageService {
 
       data.completedAt = new Date();
 
-      let bytecodeHash: string | null = null;
-      if (audit.contractAddress && audit.payment?.chainId) {
+      let bytecodeHash: string | null = audit.bytecodeHash || null;
+      const lookupChainId =
+        audit.onChainChainId || audit.payment?.chainId || getDefaultAttestationChainId();
+      if (!bytecodeHash && audit.contractAddress && lookupChainId) {
         bytecodeHash = await this.blockchainService.getContractBytecodeHash(
-          audit.payment.chainId,
+          lookupChainId,
           audit.contractAddress
         );
       }
@@ -123,9 +125,15 @@ export class AdvanceStageService {
 
       data.bytecodeHash = bytecodeHash.startsWith('0x') ? bytecodeHash : `0x${bytecodeHash}`;
 
-      // Compute deterministic findings Merkle root
+      // Compute deterministic findings Merkle root (preserving zyron.evidence/v1 root if ProverEvidence exists)
       const findingsList = audit.findings.map((f) => ({ displayId: f.displayId, severity: f.severity }));
-      const merkleRoot = this.blockchainService.computeFindingsMerkleRoot(findingsList);
+      let merkleRoot = this.blockchainService.computeFindingsMerkleRoot(findingsList);
+      if (typeof (this.blockchainService as any).computeAuditEvidenceRoot === 'function' && (this.prisma as any).proverEvidence?.findMany) {
+        const evidences = await (this.prisma as any).proverEvidence.findMany({ where: { auditId: audit.id } });
+        if (Array.isArray(evidences) && evidences.length > 0) {
+          merkleRoot = await (this.blockchainService as any).computeAuditEvidenceRoot(audit);
+        }
+      }
       data.merkleRoot = merkleRoot;
 
       // ─── IPFS & PDF REPORT PINNING ───
@@ -245,10 +253,8 @@ export class AdvanceStageService {
             data.attestationStatus = 'CONFIRMED';
           }
         } catch (err: any) {
-          const fallbackTx = `0x${cryptoHash(auditId + Date.now().toString())}`;
-          data.onChainTxHash = fallbackTx;
-          data.onChainChainId = getDefaultAttestationChainId();
-          data.attestationStatus = 'CONFIRMED';
+          // Never fabricate a transaction hash when on-chain submission is unavailable or fails
+          data.attestationStatus = 'PENDING_REVIEW';
         }
 
         // Automatically issue Trust Passport claims (AUDIT_COMPLETED, CONTRACT_VERIFIED, AI_AGENT_VERIFIED)
