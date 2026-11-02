@@ -10,6 +10,10 @@ import helmet from 'helmet';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
 
+  // Behind nginx: use X-Forwarded-For so rate limits are tracked per client IP,
+  // not one shared bucket for every user (which caused global 429s).
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   // Global Prefix (/api/v1) matching codebase pattern
   app.setGlobalPrefix('api/v1', {
     exclude: ['/docs', '/docs-json', '/reports/(.*)', '/reports'],
