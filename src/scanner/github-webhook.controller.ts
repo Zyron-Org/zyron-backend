@@ -18,9 +18,14 @@ export class GithubWebhookController {
   ) {
     this.logger.log(`Received GitHub Webhook event: ${event}`);
 
-    // Listen for issue/PR comments
-    if (event === 'issue_comment' || event === 'pull_request_review_comment') {
-      if (payload.action === 'created') {
+    // Listen for issues, PRs, and comments mentioning the bot
+    if (
+      event === 'issue_comment' ||
+      event === 'pull_request_review_comment' ||
+      event === 'issues' ||
+      event === 'pull_request'
+    ) {
+      if (payload.action === 'created' || payload.action === 'opened') {
         return this.scannerService.processGithubBotMention(payload);
       }
     }

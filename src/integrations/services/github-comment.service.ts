@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 
 @Injectable()
 export class GithubCommentService {
+  private readonly logger = new Logger(GithubCommentService.name);
   private githubApiUrl = 'https://api.github.com';
 
   async postCommentToIssue(
@@ -33,6 +34,9 @@ export class GithubCommentService {
         html_url: res.data.html_url,
       };
     } catch (e: any) {
+      this.logger.warn(
+        `Failed to post GitHub comment to ${owner}/${repo}#${issueNumber}: ${e?.response?.status} ${e?.response?.data?.message || e.message}`,
+      );
       return {
         id: Math.floor(Math.random() * 100000),
         html_url: `https://github.com/${owner}/${repo}/issues/${issueNumber}#issuecomment-mock`,

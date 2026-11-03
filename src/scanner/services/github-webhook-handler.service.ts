@@ -45,7 +45,8 @@ export class GithubWebhookHandlerService {
   }
 
   async processGithubBotMention(payload: any) {
-    const commentText = payload.comment?.body || '';
+    const commentText =
+      payload.comment?.body || payload.issue?.body || payload.pull_request?.body || '';
     const hasBotMention = /@zyron[-_]?bot\b/i.test(commentText) || /@zyron\b/i.test(commentText);
     if (!hasBotMention) {
       return { triggered: false, reason: 'No bot mention in comment' };
