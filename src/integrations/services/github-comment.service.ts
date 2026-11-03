@@ -11,8 +11,9 @@ export class GithubCommentService {
     repo: string,
     issueNumber: number,
     body: string,
+    accessToken?: string,
   ): Promise<{ id: number; html_url: string }> {
-    const token = process.env.GITHUB_TOKEN;
+    const token = accessToken || process.env.GITHUB_TOKEN;
     const headers: any = {
       'User-Agent': 'Zyron-Security-Bot',
       Accept: 'application/vnd.github.v3+json',
@@ -51,8 +52,9 @@ export class GithubCommentService {
     ticketId: string,
     commitSha: string,
     leadAuditorName?: string,
+    accessToken?: string,
   ) {
-    const appUrl = (process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
+    const appUrl = (process.env.APP_URL || 'https://zyron.tools').replace(/\/+$/, '');
     const body = `### ⏳ Zyron Security Labs Audit Initiated
 
 Automated smart contract security audit has been queued via GitHub bot mention!
@@ -66,7 +68,7 @@ Automated smart contract security audit has been queued via GitHub bot mention!
 ---
 *View progress & live workbench on the [Zyron Security Portal](${appUrl}/portal/track/${ticketId}).*`;
 
-    return this.postCommentToIssue(owner, repo, issueNumber, body);
+    return this.postCommentToIssue(owner, repo, issueNumber, body, accessToken);
   }
 
   async postAuditSummaryComment(
@@ -75,6 +77,7 @@ Automated smart contract security audit has been queued via GitHub bot mention!
     issueNumber: number,
     ticketId: string,
     findings: any[],
+    accessToken?: string,
   ) {
     const criticalCount = findings.filter((f) => f.severity === 'CRITICAL').length;
     const highCount = findings.filter((f) => f.severity === 'HIGH').length;
@@ -109,6 +112,6 @@ ${findingsTable || '| - | - | - | No vulnerabilities detected |'}
 ---
 *Reply with \`@zyron-bot re-audit\` after pushing fixes to trigger a Round 2 re-verification diff!*`;
 
-    return this.postCommentToIssue(owner, repo, issueNumber, body);
+    return this.postCommentToIssue(owner, repo, issueNumber, body, accessToken);
   }
 }

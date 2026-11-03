@@ -44,6 +44,32 @@ export class GithubWebhookHandlerService {
     }
   }
 
+  private async resolveGithubToken(senderLogin?: string): Promise<string | undefined> {
+    if (process.env.GITHUB_TOKEN) {
+      return process.env.GITHUB_TOKEN;
+    }
+    try {
+      if (senderLogin) {
+        const senderUser = await this.prisma.user.findFirst({
+          where: {
+            githubLogin: senderLogin,
+            githubAccessToken: { not: null },
+          },
+        });
+        if (senderUser?.githubAccessToken) {
+          return senderUser.githubAccessToken;
+        }
+      }
+      const anyGithubUser = await this.prisma.user.findFirst({
+        where: { githubAccessToken: { not: null } },
+        orderBy: { updatedAt: 'desc' },
+      });
+      return anyGithubUser?.githubAccessToken || undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   async processGithubBotMention(payload: any) {
     const commentText =
       payload.comment?.body || payload.issue?.body || payload.pull_request?.body || '';
@@ -51,6 +77,10 @@ export class GithubWebhookHandlerService {
     if (!hasBotMention) {
       return { triggered: false, reason: 'No bot mention in comment' };
     }
+
+    const senderLogin =
+      payload.comment?.user?.login || payload.issue?.user?.login || payload.sender?.login;
+    const accessToken = await this.resolveGithubToken(senderLogin);
 
     const repoUrl = payload.repository?.html_url || 'https://github.com/Zyron-Org/zyron-test-protocol';
     const issueNumber = payload.issue?.number || payload.pull_request?.number || 1;
@@ -68,7 +98,11 @@ export class GithubWebhookHandlerService {
     let sourceCode: string | undefined;
 
     try {
-      const repoInspection = await this.githubService.getRepositorySolidityContracts(repoUrl, branch);
+      const repoInspection = await this.githubService.getRepositorySolidityContracts(
+        repoUrl,
+        branch,
+        accessToken,
+      );
       if (repoInspection?.commitSha && commitSha === '8f9b2d4c01e9a37') {
         commitSha = repoInspection.commitSha;
       }
@@ -83,7 +117,13 @@ export class GithubWebhookHandlerService {
           ) || repoInspection.contracts[0];
         contractFileName = preferred;
       }
-      sourceCode = await this.githubService.fetchFileContent(owner, repo, contractFileName, branch);
+      sourceCode = await this.githubService.fetchFileContent(
+        owner,
+        repo,
+        contractFileName,
+        branch,
+        accessToken,
+      );
     } catch (err: any) {
       this.logger.warn(`Could not pre-fetch contract from ${owner}/${repo}: ${err.message}`);
     }
@@ -144,6 +184,7 @@ export class GithubWebhookHandlerService {
       ticketId,
       commitSha,
       leadAuditorName,
+      accessToken,
     );
 
     // Asynchronously post findings breakdown summary comment once AST scan persists findings
@@ -160,6 +201,7 @@ export class GithubWebhookHandlerService {
             issueNumber,
             ticketId,
             findings,
+            accessToken,
           );
         }
       } catch (err: any) {
