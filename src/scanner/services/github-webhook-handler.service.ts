@@ -44,10 +44,22 @@ export class GithubWebhookHandlerService {
     }
   }
 
-  private async resolveGithubToken(senderLogin?: string): Promise<string | undefined> {
-    if (process.env.GITHUB_TOKEN) {
-      return process.env.GITHUB_TOKEN;
+  private async resolveRegisteredGithubUser(senderLogin?: string): Promise<any | null> {
+    if (!senderLogin) return null;
+    try {
+      const user = await this.prisma.user.findFirst({
+        where: {
+          githubLogin: senderLogin,
+        },
+        include: { organization: true },
+      });
+      return user || null;
+    } catch {
+      return null;
     }
+  }
+
+  private async resolveGithubToken(senderLogin?: string): Promise<string | undefined> {
     try {
       if (senderLogin) {
         const senderUser = await this.prisma.user.findFirst({
@@ -60,13 +72,16 @@ export class GithubWebhookHandlerService {
           return senderUser.githubAccessToken;
         }
       }
+      if (process.env.GITHUB_TOKEN) {
+        return process.env.GITHUB_TOKEN;
+      }
       const anyGithubUser = await this.prisma.user.findFirst({
         where: { githubAccessToken: { not: null } },
         orderBy: { updatedAt: 'desc' },
       });
       return anyGithubUser?.githubAccessToken || undefined;
     } catch {
-      return undefined;
+      return process.env.GITHUB_TOKEN || undefined;
     }
   }
 
@@ -80,12 +95,45 @@ export class GithubWebhookHandlerService {
 
     const senderLogin =
       payload.comment?.user?.login || payload.issue?.user?.login || payload.sender?.login;
+    const registeredUser = await this.resolveRegisteredGithubUser(senderLogin);
     const accessToken = await this.resolveGithubToken(senderLogin);
 
     const repoUrl = payload.repository?.html_url || 'https://github.com/Zyron-Org/zyron-test-protocol';
     const issueNumber = payload.issue?.number || payload.pull_request?.number || 1;
     const branch = payload.pull_request?.head?.ref || payload.repository?.default_branch || 'main';
     const { owner, repo } = this.githubService.parseRepoUrl(repoUrl);
+
+    // Enforce requirement: when real users have connected GitHub on the platform, the GitHub account
+    // mentioning @zyron-bot must match a registered GitHub account on Zyron.
+    let hasConnectedGithubUsers = false;
+    try {
+      const count = await this.prisma.user.count({
+        where: { githubLogin: { not: null } },
+      });
+      hasConnectedGithubUsers = count > 0;
+    } catch {}
+
+    if (
+      senderLogin &&
+      hasConnectedGithubUsers &&
+      !registeredUser &&
+      !process.env.ALLOW_UNREGISTERED_GITHUB_BOT
+    ) {
+      const appUrl = (process.env.APP_URL || 'https://zyron.tools').replace(/\/+$/, '');
+      if (accessToken) {
+        await this.githubCommentService.postCommentToIssue(
+          owner,
+          repo,
+          issueNumber,
+          `### 🔒 Zyron Security Bot — GitHub Account Verification Required\n\nHi @${senderLogin}, \`@zyron-bot\` only triggers automated audits for GitHub accounts that have signed up / connected their GitHub identity on the main Zyron platform.\n\n1. Sign in or connect your GitHub account (\`@${senderLogin}\`) at **[${appUrl}/auth/login](${appUrl}/auth/login)**.\n2. Re-comment \`@zyron-bot audit <path/to/Contract.sol>\` on this Issue or Pull Request.`,
+          accessToken,
+        );
+      }
+      return {
+        triggered: false,
+        reason: `GitHub account @${senderLogin} is not registered with GitHub OAuth on Zyron. Please sign in with GitHub on ${appUrl} first.`,
+      };
+    }
     let commitSha =
       payload.pull_request?.head?.sha ||
       payload.comment?.commit_id ||
@@ -144,7 +192,10 @@ export class GithubWebhookHandlerService {
 
     try {
       if (this.auditService) {
-        const userId = await this.resolveBotUserId(payload.comment?.user?.login || payload.sender?.login);
+        const userId =
+          registeredUser?.id ||
+          (await this.resolveBotUserId(payload.comment?.user?.login || payload.sender?.login));
+        const orgId = registeredUser?.organizationId || undefined;
         const existingAudit = isReAudit
           ? await this.prisma.auditRequest.findFirst({
               where: { githubRepoUrl: repoUrl },
@@ -158,7 +209,7 @@ export class GithubWebhookHandlerService {
           leadAuditorName = existingAudit.leadAuditor?.name || existingAudit.leadAuditorId || undefined;
           await this.auditService.submitFixes(ticketId, commitSha);
         } else {
-          const audit = await this.auditService.createAudit(userId, undefined, {
+          const audit = await this.auditService.createAudit(userId, orgId, {
             protocolName: `${owner}/${repo}`,
             contractFileName,
             compilerVersion: 'v0.8.20',
