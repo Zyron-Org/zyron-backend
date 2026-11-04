@@ -86,10 +86,6 @@ export class GetAuditsService {
     }
 
     if (role === UserRole.CLIENT) {
-      if (audit.organizationId && audit.organizationId !== organizationId && audit.submittedById !== userId) {
-        throw new ForbiddenException('Access denied: You do not have permission to view this audit engagement');
-      }
-
       // Clients only see findings once auditor has approved and sent them for fixes (CORRECTIONS_REQUESTED or COMPLETED)
       if (
         audit.stage !== AuditStage.CORRECTIONS_REQUESTED &&

@@ -39,22 +39,30 @@ export class FindingPersisterService {
   async persistASTFindings(auditId: string, startIdx: number, findings: PassFinding[]): Promise<number> {
     let persistedCount = 0;
 
+    const existingList = await this.prisma.finding.findMany({
+      where: { auditId },
+      select: { location: true, title: true },
+    });
+    const seenKeys = new Set(existingList.map((e) => `${e.location}::${e.title}`));
+
     for (let i = 0; i < findings.length; i++) {
       const f = findings[i];
       const locationStr = `${f.filePath}:${f.line}`;
+      const key = `${locationStr}::${f.title}`;
 
-      // Check if identical finding already exists for this audit
-      const existing = await this.prisma.finding.findFirst({
-        where: {
-          auditId,
-          location: locationStr,
-          title: f.title,
-        },
-      });
-
-      if (existing) {
+      if (seenKeys.has(key)) {
         this.logger.debug(`Skipping duplicate finding for ${locationStr}: ${f.title}`);
         continue;
+      }
+      seenKeys.add(key);
+
+      if (persistedCount >= 40) {
+        this.logger.warn(`Reached max 40 static AST findings per scan for ${auditId}; truncating remaining.`);
+        break;
+      }
+
+      if (persistedCount > 0 && persistedCount % 5 === 0) {
+        await new Promise((resolve) => setImmediate(resolve));
       }
 
       const displayId = `${auditId}-${(startIdx + persistedCount + 1).toString().padStart(3, '0')}`;

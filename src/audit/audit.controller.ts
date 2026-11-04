@@ -100,9 +100,15 @@ export class AuditController {
   }
 
   @Get(':id')
+  @Public()
   @ApiOperation({ summary: 'Get audit engagement details, scope, findings, & timeline' })
-  async findOneAudit(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
-    return this.auditService.findOneAudit(id, user.id, user.role, user.organizationId);
+  async findOneAudit(@Param('id') id: string, @CurrentUser() user?: CurrentUserPayload) {
+    return this.auditService.findOneAudit(
+      id,
+      user?.id || 'anonymous',
+      (user?.role as UserRole) || UserRole.CLIENT,
+      user?.organizationId,
+    );
   }
 
   @Patch(':id/claim')

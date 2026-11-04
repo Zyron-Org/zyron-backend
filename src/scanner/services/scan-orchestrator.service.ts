@@ -42,15 +42,24 @@ export class ScanOrchestratorService {
     const virtualFiles = new Map<string, string>();
     let sourceCode = customCode || audit.sourceCode;
 
-    if (audit.githubRepoUrl) {
+    // Only prefetch repository files if sourceCode is missing or contains relative imports
+    const needsRepoFetch = !sourceCode || /import\s+.*["']\.\.?\//.test(sourceCode);
+    if (audit.githubRepoUrl && needsRepoFetch) {
       try {
         const { owner, repo } = this.githubService.parseRepoUrl(audit.githubRepoUrl);
         const branch = audit.gitCommit || audit.githubBranch || 'main';
         this.logger.log(`[ScanOrchestrator] Fetching repository contracts for ${owner}/${repo} (${branch})...`);
         const tree = await this.githubService.fetchRepoTree(owner, repo, branch);
         if (tree && tree.contracts?.length > 0) {
+          // Prioritize the target contract file and cap prefetch at 8 files to avoid GitHub rate limits & CPU spikes
+          const prioritized = [...tree.contracts].sort((a, b) => {
+            const aMatch = audit.contractFileName && (a === audit.contractFileName || a.endsWith('/' + audit.contractFileName));
+            const bMatch = audit.contractFileName && (b === audit.contractFileName || b.endsWith('/' + audit.contractFileName));
+            return (bMatch ? 1 : 0) - (aMatch ? 1 : 0);
+          }).slice(0, 8);
+
           await Promise.all(
-            tree.contracts.map(async (filePath) => {
+            prioritized.map(async (filePath) => {
               try {
                 const content = await this.githubService.fetchFileContent(owner, repo, filePath, branch);
                 if (content) {

@@ -69,6 +69,8 @@ export class PassRegistryService {
 
       const start = Date.now();
       try {
+        // Yield to the Node.js event loop before each AST pass so HTTP requests (e.g. GET /audits/:id) never block
+        await new Promise((resolve) => setImmediate(resolve));
         const passFindings = await pass.run(project, config);
         const durationMs = Date.now() - start;
         passTimings[pass.name] = durationMs;

@@ -25,6 +25,16 @@ export class Pass14SymbolicExecution implements ScannerPass {
     return findings;
   }
 
+  private hasRevertNode(node: any): boolean {
+    if (!node || typeof node !== 'object') return false;
+    if (node.type === 'RevertStatement') return true;
+    if (node.type === 'FunctionCall' && node.expression?.name === 'revert') return true;
+    if (Array.isArray(node.statements)) {
+      return node.statements.some((s: any) => this.hasRevertNode(s));
+    }
+    return false;
+  }
+
   private analyzeSymbolicPaths(
     contract: ContractASTSymbol,
     fn: ASTFunctionSymbol,
@@ -53,18 +63,17 @@ export class Pass14SymbolicExecution implements ScannerPass {
 
           // 2. Check if-revert statement
           if (stmt.type === 'IfStatement') {
-            const bodyStr = JSON.stringify(stmt.trueBody || stmt.TrueBody || {});
-            if (bodyStr.includes('revert') || bodyStr.includes('RevertStatement')) {
-              const condStr = JSON.stringify(stmt.condition);
+            const trueBranch = stmt.trueBody || stmt.TrueBody;
+            const condStr = stmt.condition ? JSON.stringify(stmt.condition) : '';
+            if (this.hasRevertNode(trueBranch)) {
               if (condStr) activeGuards.add(condStr);
             }
 
             // Statements INSIDE trueBody also have condition as active positive constraint
-            if (stmt.trueBody || stmt.TrueBody) {
+            if (trueBranch) {
               const trueBranchGuards = new Set(activeGuards);
-              const condStr = JSON.stringify(stmt.condition);
               if (condStr) trueBranchGuards.add(condStr);
-              walkNode(stmt.trueBody || stmt.TrueBody, trueBranchGuards);
+              walkNode(trueBranch, trueBranchGuards);
             }
 
             if (stmt.falseBody || stmt.FalseBody) {

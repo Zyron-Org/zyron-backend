@@ -34,8 +34,8 @@ export class CreateAuditService {
       );
     }
 
-    // 2. If a GitHub repo URL is specified, inspect it to verify blockchain files exist
-    if (dto.githubRepoUrl) {
+    // 2. If a GitHub repo URL is specified and source code was not already supplied, inspect it to verify blockchain files exist
+    if (dto.githubRepoUrl && !hasContractCode) {
       try {
         const repoCheck = await this.githubService.getRepositorySolidityContracts(
           dto.githubRepoUrl,
@@ -55,7 +55,12 @@ export class CreateAuditService {
     }
 
     const count = await this.prisma.auditRequest.count();
-    const ticketId = `ZYR-${9480 + count + 1}`;
+    let seq = 9480 + count + 1;
+    let ticketId = `ZYR-${seq}`;
+    while (await this.prisma.auditRequest.findUnique({ where: { id: ticketId }, select: { id: true } })) {
+      seq++;
+      ticketId = `ZYR-${seq}`;
+    }
     const estimatedCompletion = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
     const audit = await this.prisma.auditRequest.create({
@@ -114,11 +119,13 @@ export class CreateAuditService {
       console.warn(`Auto-assign for ${audit.id} failed:`, err.message);
     }
 
-    // Auto-trigger security AST scan asynchronously
+    // Auto-trigger security AST scan asynchronously after returning HTTP response
     if (this.scanOrchestrator) {
-      this.scanOrchestrator.runScan(audit.id, dto.sourceCode).catch((err) => {
-        console.warn(`Auto-scan execution for ${audit.id} failed:`, err.message);
-      });
+      setTimeout(() => {
+        this.scanOrchestrator.runScan(audit.id, dto.sourceCode).catch((err) => {
+          console.warn(`Auto-scan execution for ${audit.id} failed:`, err.message);
+        });
+      }, 400);
     }
 
     return this.sanitizer.sanitizeAuditResult(audit);
